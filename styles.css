@@ -1,0 +1,224 @@
+/* Sovereign-Cockpit-UI — Global Styles
+   Modern CSS variables, smooth transitions, dense institutional aesthetic.
+*/
+
+:root {
+  --bg: #070b14;
+  --panel: #0f172a;
+  --border: #1e293b;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --approved: #34d399;
+  --active: #60a5fa;
+  --halted: #f87171;
+  --idle: #64748b;
+  --high: #34d399;
+  --mid: #fbbf24;
+  --low: #f87171;
+  --radius: 12px;
+  --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Shell ---------- */
+
+.cockpit-root {
+  min-height: 100vh;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.cockpit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cockpit-header h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--approved);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--approved);
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+  animation: pulse-live 1.8s ease-out infinite;
+}
+
+@keyframes pulse-live {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+/* ---------- Grid panel ---------- */
+
+.grid-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.telemetry-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.telemetry-grid thead {
+  background: #020617;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.72rem;
+}
+
+.telemetry-grid th,
+.telemetry-grid td {
+  padding: 0.9rem 1.15rem;
+  text-align: left;
+}
+
+.telemetry-grid tbody tr {
+  border-top: 1px solid var(--border);
+  transition: background 0.18s ease;
+}
+
+.telemetry-grid tbody tr:hover {
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.stage-cell {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.time-cell {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* ---------- Pills ---------- */
+
+.consensus-pill,
+.state-pill {
+  display: inline-block;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.consensus-high {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--high);
+}
+
+.consensus-mid {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--mid);
+}
+
+.consensus-low {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--low);
+}
+
+.state-approved {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--approved);
+}
+
+.state-active {
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--active);
+}
+
+.state-halted {
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--halted);
+  animation: soft-pulse 1.6s ease-in-out infinite;
+}
+
+.state-idle {
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--idle);
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+/* ---------- Footer ---------- */
+
+.cockpit-footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
