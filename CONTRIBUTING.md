@@ -10,7 +10,7 @@ npm run dev     # start dev server at localhost:3000
 ```
 
 ## WebSocket Protocol
-The cockpit connects to the MEHD AI backend via WebSocket at `/ws/telemetry`.
+The cockpit connects to a quantitative execution backend via WebSocket at `/ws/telemetry`.
 
 Expected message schema:
 ```json

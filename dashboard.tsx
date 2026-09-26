@@ -139,3 +139,58 @@ export default function Dashboard() {
     </main>
   );
 }
+
+/**
+ * useWebSocket — production-grade WebSocket hook with auto-reconnect.
+ * Handles exponential back-off so the cockpit recovers gracefully after
+ * network drops, server restarts, or brief routing outages.
+ */
+export type WsStatus = "connecting" | "open" | "closed" | "error";
+
+export function useWebSocket(
+  url: string | null,
+  onMessage: (event: MessageEvent) => void,
+): WsStatus {
+  const [status, setStatus] = React.useState<WsStatus>("closed");
+
+  useEffect(() => {
+    if (!url) return;
+
+    let ws: WebSocket | null = null;
+    let retries = 0;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      setStatus("connecting");
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        retries = 0;
+        setStatus("open");
+      };
+
+      ws.onmessage = onMessage;
+
+      ws.onerror = () => setStatus("error");
+
+      ws.onclose = () => {
+        if (cancelled) return;
+        setStatus("closed");
+        const delay = Math.min(1000 * 2 ** retries, 30_000);
+        retries += 1;
+        setTimeout(connect, delay);
+      };
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      ws?.close();
+    };
+  }, [url, onMessage]);
+
+  return status;
+}
+```
