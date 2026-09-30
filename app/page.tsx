@@ -1,307 +1,380 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 
-interface AgentDetail {
+interface Agent {
   id: string;
   name: string;
-  room: "Sentiment" | "Strategy" | "Math";
-  model: string;
-  weight: number;
-  vote: "BUY" | "SELL" | "HOLD";
-  score: number;
-  confidence: number;
-  latencyMs: number;
+  badge: string;
+  badgeColor: "emerald" | "blue" | "purple";
+  desc: string;
+  m1Label: string;
+  m1Val: string;
+  m2Label: string;
+  m2Val: string;
   logic: string;
 }
 
-const AGENTS: AgentDetail[] = [
-  { id: "market", name: "Market Agent", room: "Sentiment", model: "Claude 3.5 Sonnet", weight: 0.30,
-    vote: "BUY", score: 9.2, confidence: 94.1, latencyMs: 142, logic: "Order-flow delta & liquidity imbalance analysis across London/NY sessions." },
-  { id: "signal", name: "Signal Agent", room: "Strategy", model: "GPT-4o", weight: 0.40,
-    vote: "BUY", score: 9.6, confidence: 96.5, latencyMs: 110, logic: "FVG fair value gap mitigation & multi-timeframe market structure sweeps." },
-  { id: "ml", name: "ML Predictor", room: "Strategy", model: "Transformer-V8", weight: 0.15,
-    vote: "BUY", score: 8.8, confidence: 91.2, latencyMs: 85, logic: "Sequence forecasting over 256-tick feature embeddings with Hampel filtering." },
-  { id: "risk", name: "Risk Governor", room: "Math", model: "C++20 SIMD Kernel", weight: 0.15,
-    vote: "BUY", score: 9.9, confidence: 99.1, latencyMs: 18, logic: "Deterministic Kelly criterion sizing & hard 3.00% daily drawdown ceiling." },
+const AGENTS: Agent[] = [
+  { id: "market", name: "Market Agent", badge: "Bullish", badgeColor: "emerald",
+    desc: "Class: Trending high vol", m1Label: "ATR", m1Val: "0.42", m2Label: "RST", m2Val: "64.2",
+    logic: "Order-flow delta & liquidity imbalance analysis across London/NY sessions." },
+  { id: "signal", name: "Signal Agent", badge: "Active", badgeColor: "purple",
+    desc: "Signals: 14 Long / 2 short", m1Label: "Cluster", m1Val: "MACD_CROSS", m2Label: "Strength", m2Val: "High",
+    logic: "FVG fair value gap mitigation & multi-timeframe market structure sweeps." },
+  { id: "ml", name: "ML Predictor", badge: "94% ACC", badgeColor: "blue",
+    desc: "Pred: +1.2% in 4H", m1Label: "Model", m1Val: "Transformer_V8", m2Label: "Confidence", m2Val: "0.88",
+    logic: "Sequence forecasting over 256-tick feature embeddings with Hampel filtering." },
+  { id: "risk", name: "Risk Control", badge: "Bullish", badgeColor: "emerald",
+    desc: "Exposure: 75% Limit", m1Label: "Drawdown", m1Val: "0.12%", m2Label: "Breach", m2Val: "None",
+    logic: "Deterministic Kelly criterion sizing & hard 3.00% daily drawdown ceiling." },
 ];
 
-const STAGES = [
-  { id: "s1", name: "1. Ingestion", tech: "Kafka / Arrow", latency: "82 µs", detail: "Microsecond tick ingestion & pairwise Hampel outlier filtering." },
-  { id: "s2", name: "2. Oracle", tech: "Tukey IQR", latency: "145 µs", detail: "Multi-venue L2 price comparison to prevent toxic arbitrage slip." },
-  { id: "s3", name: "3. Swarm", tech: "11-Agent LLM", latency: "4.1 ms", detail: "Parallel AsyncIO inference enforcing strict ≥92.0% consensus gate." },
-  { id: "s4", name: "4. Risk SIMD", tech: "C++20 Hardware", latency: "18 µs", detail: "Hardware-floor capital defense & VaR(95%) stress variance bounds." },
-  { id: "s5", name: "5. Execution", tech: "FIX 4.4 Engine", latency: "185 µs", detail: "Sub-millisecond IOC/FOK order routing to liquidity gateways." },
+const BARS = [
+  { day: "Mon, 24", val: 40, h: "40%" },
+  { day: "Tue, 25", val: 60, h: "60%" },
+  { day: "Wed, 26", val: 24, h: "24%" },
+  { day: "Thu, 26", val: 70, h: "70%", active: true },
+  { day: "Fri, 27", val: 20, h: "20%" },
+  { day: "Sat, 28", val: 35, h: "35%" },
+  { day: "Sun, 29", val: 50, h: "50%" },
 ];
 
 export default function SovereignCockpit() {
-  const [selectedAgent, setSelectedAgent] = useState<AgentDetail | null>(null);
-  const [selectedStage, setSelectedStage] = useState<number | null>(null);
-  const [showOverviewModal, setShowOverviewModal] = useState(false);
-  const [activeSignalStage, setActiveSignalStage] = useState<number | null>(null);
-  const [signalStatus, setSignalStatus] = useState<string>("Ready to test");
+  const [activeNav, setActiveNav] = useState("Dashboard");
+  const [activeStage, setActiveStage] = useState("Agents");
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [showModal, setShowModal] = useState(false);
   const [isHalted, setIsHalted] = useState(false);
-  const [agreement, setAgreement] = useState(94.2);
-  const [msgs, setMsgs] = useState(1940);
-  const [logs, setLogs] = useState<{ id: string; ts: string; tag: string; msg: string; type: string }[]>([
-    { id: "1", ts: "01:30:00.104", tag: "CORE", msg: "Sovereign operator grid initialized. Telemetry live.", type: "info" },
-    { id: "2", ts: "01:30:00.412", tag: "SWARM", msg: "11 agents synchronized across Sentiment, Strategy, and Math rooms.", type: "success" },
-    { id: "3", ts: "01:30:00.780", tag: "ORACLE", msg: "Pairwise price divergence 0.02% [VERIFIED NOMINAL].", type: "success" },
-    { id: "4", ts: "01:30:01.050", tag: "RISK", msg: "Drawdown governor: 0.12% daily / 3.00% hard circuit breaker ceiling.", type: "info" },
-  ]);
+  const [isDispatching, setIsDispatching] = useState(false);
+  const [dispatchMsg, setDispatchMsg] = useState("");
+  const [consensus, setConsensus] = useState(94.20);
+  const [revenue, setRevenue] = useState(20422);
+  const [sharpe, setSharpe] = useState(3.82);
 
-  const logRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    logRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  // Live telemetry pulse
+  // Subtle live telemetry pulse
   useEffect(() => {
     if (isHalted) return;
-    const iv = setInterval(() => {
-      setMsgs((p) => Math.floor(p + Math.random() * 26 - 13));
-      setAgreement((p) => Math.min(98.5, Math.max(90.2, p + (Math.random() * 0.3 - 0.15))));
-    }, 2200);
-    return () => clearInterval(iv);
+    const interval = setInterval(() => {
+      setConsensus((p) => Math.min(98.4, Math.max(91.2, p + (Math.random() * 0.2 - 0.1))));
+      setRevenue((p) => Math.floor(p + (Math.random() * 8 - 4)));
+      setSharpe((p) => Math.min(4.1, Math.max(3.6, p + (Math.random() * 0.02 - 0.01))));
+    }, 2400);
+    return () => clearInterval(interval);
   }, [isHalted]);
 
-  const pushLog = (tag: string, msg: string, type: "info" | "success" | "warn" | "error" = "info") => {
-    const now = new Date();
-    const ts = `${now.toTimeString().split(" ")[0]}.${String(now.getMilliseconds()).padStart(3, "0")}`;
-    setLogs((prev) => [...prev.slice(-35), { id: String(Date.now() + Math.random()), ts, tag, msg, type }]);
-  };
-
-  // Visibly propagate demo signal through the 5 pipeline stages
-  const runDemoSignal = () => {
-    if (isHalted) {
-      pushLog("CIRCUIT", "Signal dispatch blocked: Emergency circuit breaker engaged.", "error");
-      return;
-    }
-    setActiveSignalStage(0);
-    setSignalStatus("1/5 Ingesting EUR/USD tick...");
-    pushLog("INGEST", "INCOMING TICK: EUR/USD @ 1.08502 (Spread: 0.6 pips).", "info");
-
+  const handleDispatch = () => {
+    if (isDispatching) return;
+    setIsDispatching(true);
+    setDispatchMsg("Propagating tick through 11 agents...");
     setTimeout(() => {
-      setActiveSignalStage(1);
-      setSignalStatus("2/5 Oracle verifying L2 pricing...");
-      pushLog("ORACLE", "Hampel check PASSED. Multi-venue divergence: 0.015%.", "success");
-    }, 550);
-
+      setDispatchMsg("Oracle verified: Pairwise slip 0.01% [PASS]");
+    }, 600);
     setTimeout(() => {
-      setActiveSignalStage(2);
-      setSignalStatus("3/5 Swarm evaluating (11 LLMs)...");
-      pushLog("SWARM", "11/11 agents consensus: 94.6% agreement [BUY AUTHORIZED].", "success");
+      setDispatchMsg("Consensus reached: 95.8% Supermajority [BUY]");
+      setConsensus(95.8);
     }, 1200);
-
     setTimeout(() => {
-      setActiveSignalStage(3);
-      setSignalStatus("4/5 SIMD risk bounds checking...");
-      pushLog("RISK", "Hardware variance check cleared: risk 1.0% equity allocation.", "info");
+      setDispatchMsg("Execution routed via FIX 4.4 bridge (185 µs)");
     }, 1800);
-
     setTimeout(() => {
-      setActiveSignalStage(4);
-      setSignalStatus("5/5 FIX 4.4 routing to venue...");
-      pushLog("EXEC", "IOC order filled @ 1.08502 (zero slippage, latency: 185 µs).", "success");
-    }, 2350);
-
-    setTimeout(() => {
-      setActiveSignalStage(null);
-      setSignalStatus("Signal completed successfully (248 µs kernel budget).");
-    }, 3200);
+      setIsDispatching(false);
+      setDispatchMsg("");
+    }, 2800);
   };
 
   return (
-    <div className="cockpit-root">
-      {/* 1. PROJECT IDENTITY PANEL */}
-      <header className="identity-panel">
-        <div className="id-left">
-          <div className="avatar-chip">UB</div>
-          <div>
-            <div className="author-name-row">
-              <span className="author-name">Usman Abayomi Bamidele</span>
-              <span className="role-tag">Senior Backend &amp; AI Systems Engineer</span>
+    <div className="monolith-shell">
+      {/* ── LEFT SIDEBAR ── */}
+      <aside className="monolith-sidebar">
+        <div className="sb-top">
+          <div className="sb-logo-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div className="sb-user-card">
+            <div className="sb-avatar">UB</div>
+            <div className="sb-user-meta">
+              <span className="sb-user-name">Usman Bamidele</span>
+              <span className="sb-user-id">ID: 942-X01</span>
             </div>
-            <p className="project-desc">
-              Operator telemetry cockpit for a distributed 11-agent quantitative consensus swarm and sub-millisecond risk execution kernel.
-            </p>
           </div>
         </div>
-        <div className="id-right">
-          <button className="btn-overview" onClick={() => setShowOverviewModal(true)}>
-            View Project Overview &amp; Architecture
+
+        <div className="sb-nav-section">
+          <span className="sb-section-label">Project</span>
+          {["Dashboard", "Markets", "Risk", "Portfolio", "Logs"].map((item) => (
+            <button
+              key={item}
+              className={`sb-nav-btn ${activeNav === item ? "active" : ""}`}
+              onClick={() => setActiveNav(item)}
+            >
+              <span className="sb-nav-dot" />
+              <span>{item}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="sb-nav-section">
+          <span className="sb-section-label">System</span>
+          <button className="sb-nav-btn" onClick={() => setShowModal(true)}>
+            <span className="sb-nav-dot" />
+            <span>Architecture &amp; NDA</span>
           </button>
-          <a href="https://github.com/amazing200guy1-a11y" target="_blank" rel="noreferrer" className="btn-link">GitHub (9 Repos)</a>
-          <a href="https://linkedin.com/in/usman-bamidele" target="_blank" rel="noreferrer" className="btn-link">LinkedIn</a>
-          <a href="mailto:usmanbamidele200@gmail.com" className="btn-hire">Hire Me</a>
+          <a href="https://github.com/amazing200guy1-a11y" target="_blank" rel="noreferrer" className="sb-nav-btn">
+            <span className="sb-nav-dot" />
+            <span>GitHub (9 Repos)</span>
+          </a>
+          <a href="https://linkedin.com/in/usman-bamidele" target="_blank" rel="noreferrer" className="sb-nav-btn">
+            <span className="sb-nav-dot" />
+            <span>LinkedIn</span>
+          </a>
         </div>
-      </header>
 
-      {/* 2. DEMO MODE INDICATOR BANNER */}
-      <div className="demo-banner">
-        <div className="demo-badge">
-          <span className="demo-dot" />
-          <span>PORTFOLIO DEMO MODE · SIMULATED TELEMETRY</span>
+        <div className="sb-footer">
+          <a href="mailto:usmanbamidele200@gmail.com" className="sb-hire-btn">
+            Hire Usman Bamidele
+          </a>
         </div>
-        <div className="demo-text">
-          Live streaming figures are generated via deterministic replay. Proprietary FIX bridges &amp; risk kernels operate under stealth NDA.
-        </div>
-      </div>
+      </aside>
 
-      {/* 3. PIPELINE PROPAGATION RUNNER */}
-      <section className="pipeline-strip">
-        <div className="pipeline-header">
-          <div>
-            <span className="section-title">Deterministic Execution Pipeline</span>
-            <span className="section-sub">Select any stage to inspect profiling telemetry or trigger a live test signal</span>
+      {/* ── MAIN WORKSPACE ── */}
+      <main className="monolith-main">
+        {/* Recruiter Identity & Context Ribbon */}
+        <header className="identity-ribbon">
+          <div className="ribbon-left">
+            <span className="ribbon-brand">SOVEREIGN COCKPIT</span>
+            <span className="ribbon-sep">/</span>
+            <span className="ribbon-role">Architected by <strong>Usman Abayomi Bamidele</strong> · Senior Backend &amp; AI Systems</span>
           </div>
-          <div className="pipeline-actions">
-            <span className="signal-status-pill">{signalStatus}</span>
-            <button className="btn-dispatch" onClick={runDemoSignal} disabled={activeSignalStage !== null}>
-              {activeSignalStage !== null ? "Propagating Signal..." : "⚡ Dispatch Test Signal"}
+          <div className="ribbon-right">
+            <span className="demo-pill">
+              <span className="demo-dot" />
+              DEMO MODE · SIMULATED TELEMETRY (STEALTH NDA)
+            </span>
+            <button className="btn-modal-trigger" onClick={() => setShowModal(true)}>
+              Project Overview
             </button>
-            <button className={`btn-halt ${isHalted ? "active" : ""}`} onClick={() => setIsHalted((h) => !h)}>
-              {isHalted ? "Resume System" : "Emergency Halt"}
+          </div>
+        </header>
+
+        {/* Top Workflow Bar */}
+        <div className="top-action-bar">
+          <div className="stage-tabs">
+            {["Ingest", "Features", "Agents", "Execute"].map((tab) => (
+              <button
+                key={tab}
+                className={`stage-tab ${activeStage === tab ? "active" : ""}`}
+                onClick={() => setActiveStage(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="action-search">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input placeholder="Search telemetry..." className="search-input" />
+            <span className="kbd-pill">⌘K</span>
+          </div>
+
+          <div className="top-status-group">
+            <div className={`pipeline-live-pill ${isHalted ? "halted" : ""}`}>
+              <span className="live-dot" />
+              <span>{isHalted ? "Pipeline Halted" : "Pipeline live"}</span>
+            </div>
+            <button
+              className={`btn-recalibrate ${isDispatching ? "pulsing" : ""}`}
+              onClick={handleDispatch}
+            >
+              {isDispatching ? "Routing..." : "Dispatch Demo Signal"}
             </button>
           </div>
         </div>
 
-        <div className="pipeline-grid">
-          {STAGES.map((st, i) => (
-            <div
-              key={st.id}
-              className={`stage-card ${activeSignalStage === i ? "propagating" : ""} ${selectedStage === i ? "selected" : ""}`}
-              onClick={() => setSelectedStage(i)}
-            >
-              <div className="stage-top">
-                <span className="stage-name">{st.name}</span>
-                <span className="stage-latency mono">{st.latency}</span>
-              </div>
-              <div className="stage-tech">{st.tech}</div>
-              {selectedStage === i && <div className="stage-detail-bubble">{st.detail}</div>}
+        {dispatchMsg && <div className="dispatch-alert">{dispatchMsg}</div>}
+
+        {/* Hero Section */}
+        <section className="hero-grid">
+          <div className="hero-left">
+            <span className="hero-eyebrow">Kinetic Monolith Architecture</span>
+            <span className="hero-sublabel">Aggregate net alpha / Consensus</span>
+            <div className="hero-main-stat">
+              <span className="hero-number mono">{consensus.toFixed(2)}%</span>
+              <span className="hero-pnl-pill">Daily PnL +12.4%</span>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 4. MAIN KPI ROW */}
-      <section className="kpi-strip">
-        <div className="kpi-card">
-          <div className="kpi-label">Consensus Supermajority</div>
-          <div className="kpi-value mono emerald">{agreement.toFixed(2)}%</div>
-          <div className="kpi-foot">&ge; 92.0% Fail-Closed Gate</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Active Swarm Models</div>
-          <div className="kpi-value mono blue">11 / 11</div>
-          <div className="kpi-foot">Sentiment · Strategy · Math</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Pipeline Ingestion Rate</div>
-          <div className="kpi-value mono">{isHalted ? "0" : msgs.toLocaleString()}</div>
-          <div className="kpi-foot">AsyncIO msgs / sec</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Kernel Risk Budget</div>
-          <div className="kpi-value mono emerald">&lt; 250 µs</div>
-          <div className="kpi-foot">Zero Override Tolerance</div>
-        </div>
-      </section>
-
-      {/* 5. MULTI-AGENT LAYER (CLICKABLE AGENT INSPECTOR) */}
-      <section className="agents-workspace">
-        <div className="section-header-row">
-          <div>
-            <span className="section-title">Multi-Agent Decision Swarm</span>
-            <span className="section-sub">Click any agent card below to inspect model prompt logic, conviction weight, and telemetry</span>
           </div>
-          <span className="mono" style={{ fontSize: "11px", color: "var(--accent-emerald)" }}>
-            CURRENT AGREEMENT: {agreement.toFixed(1)}% [BUY APPROVED]
-          </span>
-        </div>
 
-        <div className="agents-row">
-          {AGENTS.map((a) => (
-            <div
-              key={a.id}
-              className={`agent-card ${selectedAgent?.id === a.id ? "inspected" : ""}`}
-              onClick={() => setSelectedAgent(a)}
-            >
-              <div className="agent-top">
-                <span className="agent-name">{a.name}</span>
-                <span className={`agent-pill ${a.room.toLowerCase()}`}>{a.room}</span>
+          <div className="hero-right-metrics">
+            <div className="mini-metric-card">
+              <div className="mm-head">
+                <span className="mm-label">Kelly criterion</span>
+                <span className="mm-val mono">0.145</span>
               </div>
-              <div className="agent-model mono">{a.model}</div>
-              <div className="agent-metrics">
-                <div><span>Vote:</span> <strong className="emerald">{a.vote}</strong></div>
-                <div><span>Score:</span> <strong>{a.score}/10</strong></div>
-                <div><span>Weight:</span> <strong>{(a.weight * 100).toFixed(0)}%</strong></div>
-                <div><span>Latency:</span> <strong className="mono">{a.latencyMs}ms</strong></div>
-              </div>
-              <div className="agent-click-hint">Click to inspect logic &rarr;</div>
+              <svg viewBox="0 0 100 28" className="spark-svg">
+                <path d="M0,24 Q25,8 50,18 T100,6" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </div>
-          ))}
-        </div>
 
-        {/* Selected Agent Inspector Drawer */}
-        {selectedAgent && (
-          <div className="inspector-panel">
-            <div className="inspector-head">
+            <div className="mini-metric-card">
+              <div className="mm-head">
+                <span className="mm-label">Active exposure</span>
+                <span className="mm-val mono">$4.2M</span>
+              </div>
+              <div className="mini-bars">
+                <div style={{ height: "40%" }} />
+                <div style={{ height: "70%" }} />
+                <div style={{ height: "100%", background: "#38bdf8" }} />
+                <div style={{ height: "55%" }} />
+                <div style={{ height: "85%" }} />
+              </div>
+            </div>
+
+            <div className="mini-metric-card">
+              <div className="mm-head">
+                <span className="mm-label">Risk parity</span>
+                <span className="mm-val">Balanced</span>
+              </div>
+              <svg viewBox="0 0 100 28" className="spark-svg">
+                <path d="M0,22 L30,22 L30,12 L65,12 L65,6 L100,6" fill="none" stroke="#10b981" strokeWidth="2" />
+              </svg>
+            </div>
+          </div>
+        </section>
+
+        {/* Center Visual Section: 3D Cylinder Bar Chart + Luminous Risk Orb */}
+        <section className="center-grid">
+          {/* 3D Cylinder Throughput Chart */}
+          <div className="chart-panel">
+            <div className="chart-head">
               <div>
-                <strong>{selectedAgent.name}</strong> · Model Architecture: <code className="mono">{selectedAgent.model}</code> ({selectedAgent.room} Room)
+                <span className="cp-sub">Total Revenue</span>
+                <div className="cp-num-row">
+                  <span className="cp-num mono">${revenue.toLocaleString()}.00</span>
+                  <span className="cp-badge">+10.32% From last period</span>
+                </div>
               </div>
-              <button className="inspector-close" onClick={() => setSelectedAgent(null)}>&times; Close</button>
+              <button className="btn-balance-pill mono">
+                <span>&#128274;</span> Balance: 4.6K
+              </button>
             </div>
-            <p className="inspector-body">
-              <strong>Prompt Logic:</strong> {selectedAgent.logic}
-            </p>
-            <div className="inspector-stats mono">
-              <span>Conviction Score: {selectedAgent.score}/10</span>
-              <span>Confidence: {selectedAgent.confidence}%</span>
-              <span>Consensus Room Weight: {(selectedAgent.weight * 100).toFixed(0)}%</span>
-              <span>Inference Latency: {selectedAgent.latencyMs}ms</span>
+
+            {/* 3D Cylinders */}
+            <div className="cylinder-stage">
+              {BARS.map((b) => (
+                <div key={b.day} className={`cylinder-col ${b.active ? "glow-cylinder" : ""}`}>
+                  <span className="cyl-val mono">{b.val}</span>
+                  <div className="cylinder-track">
+                    <div className="cylinder-tube" style={{ height: b.h }}>
+                      <div className="cylinder-top" />
+                    </div>
+                  </div>
+                  <span className="cyl-day">{b.day}</span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
-      </section>
 
-      {/* 6. REAL-TIME AUDIT LOG */}
-      <section className="terminal-section">
-        <div className="terminal-header mono">SYS_OPERATOR_AUDIT_STREAM // Real-Time Execution Trace</div>
-        <div className="terminal-body">
-          {logs.map((l) => (
-            <div key={l.id} className="term-line">
-              <span className="term-ts mono">[{l.ts}]</span>
-              <span className="term-tag mono">[{l.tag}]</span>
-              <span className={`term-msg ${l.type === "success" ? "emerald" : l.type === "error" ? "rose" : ""}`}>{l.msg}</span>
+          {/* Global Risk Exposure & Orb */}
+          <div className="risk-panel">
+            <span className="rp-title">Global Risk Exposure</span>
+            
+            <div className="orb-centerpiece">
+              <div className="luminous-orb">
+                <div className="orb-inner-fluid" />
+              </div>
+              <div className="rp-stats mono">
+                <div className="rp-stat-row">
+                  <span>VAR (95%)</span>
+                  <strong className="coral">-2.4%</strong>
+                </div>
+                <div className="rp-stat-row">
+                  <span>Sharperatio</span>
+                  <strong className="cyan">{sharpe.toFixed(2)}</strong>
+                </div>
+                <div className="rp-stat-row">
+                  <span>Max Drawdown</span>
+                  <strong>$12.5K</strong>
+                </div>
+              </div>
             </div>
-          ))}
-          <div ref={logRef} />
-        </div>
-      </section>
 
-      {/* 7. PROJECT OVERVIEW MODAL */}
-      {showOverviewModal && (
-        <div className="modal-backdrop" onClick={() => setShowOverviewModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Project Architecture &amp; Engineering Pedigree</h2>
-              <button className="modal-close" onClick={() => setShowOverviewModal(false)}>&times;</button>
+            <div className="rl-strategy-card">
+              <div className="rl-head">
+                <span className="rl-sub">Leader: RL Agent Strategy</span>
+                <span className="rl-star">&#10022;</span>
+              </div>
+              <span className="rl-name mono">RL_BETA_V4</span>
+              <span className="rl-badge">Net Alpha: +22.4% / mo</span>
             </div>
-            <div className="modal-content">
+          </div>
+        </section>
+
+        {/* Bottom Multi-Agent Decision Layer */}
+        <section className="agents-strip">
+          <div className="section-title-row">
+            <span className="section-title">Multi Agent Decision Layer</span>
+            <span className="section-hint">Click any agent to inspect runtime logic &amp; model weights</span>
+          </div>
+
+          <div className="agent-cards-grid">
+            {AGENTS.map((a) => (
+              <div
+                key={a.id}
+                className={`mac-card ${selectedAgent?.id === a.id ? "selected" : ""}`}
+                onClick={() => setSelectedAgent(selectedAgent?.id === a.id ? null : a)}
+              >
+                <div className="mac-top">
+                  <div className="mac-icon-box">&#9638;</div>
+                  <span className={`mac-pill ${a.badgeColor}`}>{a.badge}</span>
+                </div>
+                <div className="mac-name">{a.name}</div>
+                <div className="mac-desc">{a.desc}</div>
+                <div className="mac-metrics">
+                  <div>
+                    <span className="mm-l">{a.m1Label}:</span>
+                    <strong className="mm-v mono">{a.m1Val}</strong>
+                  </div>
+                  <div>
+                    <span className="mm-l">{a.m2Label}:</span>
+                    <strong className="mm-v mono">{a.m2Val}</strong>
+                  </div>
+                </div>
+                {selectedAgent?.id === a.id && (
+                  <div className="mac-drawer-logic">
+                    <span>Inference Logic:</span> {a.logic}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {/* ── PROJECT OVERVIEW MODAL ── */}
+      {showModal && (
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-top">
+              <h2>Sovereign Cockpit Architecture</h2>
+              <button className="modal-x" onClick={() => setShowModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
               <p>
-                <strong>Sovereign Cockpit</strong> was designed and architected by <strong>Usman Abayomi Bamidele</strong> as the operator telemetry layer for a hybrid quantitative trading infrastructure.
+                <strong>Sovereign Cockpit</strong> was designed by <strong>Usman Abayomi Bamidele</strong> as the operator telemetry interface for a distributed 11-agent consensus trading system.
               </p>
-              <h3>Key Architectural Pillars</h3>
+              <h3>Core System Invariants</h3>
               <ul>
-                <li><strong>11-Agent Consensus Swarm:</strong> Dispatches parallel AsyncIO evaluations across Sentiment (Claude 3.5), Strategy (GPT-4o), and Math (DeepSeek/SIMD) models, requiring &ge; 92.0% consensus before trade dispatch.</li>
-                <li><strong>Sub-Millisecond Risk Governor:</strong> Hardware-floor capital constraints written with SIMD variance bounds, 3.00% daily drawdown circuit breaker, and zero override capability.</li>
-                <li><strong>Production Verification:</strong> Tested under 240+ unit, integration, and chaos test suites with a 100% green pass rate, validating HMAC webhook verifications and race condition defenses.</li>
-                <li><strong>Stealth Context:</strong> Core broker routing bridges and proprietary execution kernels remain under stealth NDA for commercial launch.</li>
+                <li><strong>11-Agent Weighted Consensus:</strong> AsyncIO task pools distribute evaluations across Sentiment, Strategy, and Math rooms with a strict &ge; 92.0% consensus execution threshold.</li>
+                <li><strong>Sub-Millisecond Risk Kernel:</strong> Hardware-enforced SIMD bounds with a 3.00% daily drawdown circuit breaker.</li>
+                <li><strong>Production Verification:</strong> Backed by 240+ automated green tests verifying HMAC webhook security and concurrency race defenses.</li>
+                <li><strong>Stealth Context:</strong> Live broker execution bridges operate under stealth NDA for commercial release.</li>
               </ul>
-              <div className="modal-actions">
-                <a href="https://github.com/amazing200guy1-a11y/Sovereign-Cockpit-UI" target="_blank" rel="noreferrer" className="btn-link">View GitHub Repo</a>
-                <button className="btn-hire" onClick={() => setShowOverviewModal(false)}>Back to Cockpit</button>
+              <div className="modal-foot">
+                <a href="https://github.com/amazing200guy1-a11y/Sovereign-Cockpit-UI" target="_blank" rel="noreferrer" className="btn-modal-gh">GitHub Repository</a>
+                <button className="btn-modal-close" onClick={() => setShowModal(false)}>Close Overview</button>
               </div>
             </div>
           </div>
