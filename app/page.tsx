@@ -1,411 +1,228 @@
 "use client";
+import React, { useEffect, useState } from "react";
 
-import React, { useEffect, useState, useRef } from "react";
-
-interface Agent {
-  name: string;
-  room: "Sentiment" | "Strategy" | "Math";
-  action: "BUY" | "SELL" | "HOLD";
-  score: number;
-  confidence: number;
-  latencyMs: number;
-}
-
-interface ExecutionStage {
-  id: string;
-  name: string;
-  subsystem: string;
-  latencyUs: number;
-  status: "OPTIMAL" | "ACTIVE" | "HALTED";
-}
-
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  subsystem: string;
-  message: string;
-  type: "info" | "success" | "warn" | "error";
-}
-
-const INITIAL_AGENTS: Agent[] = [
-  { name: "The Don", room: "Sentiment", action: "BUY", score: 9.2, confidence: 94.1, latencyMs: 142 },
-  { name: "Phantom", room: "Sentiment", action: "BUY", score: 8.8, confidence: 89.4, latencyMs: 165 },
-  { name: "Oracle", room: "Sentiment", action: "BUY", score: 9.1, confidence: 92.0, latencyMs: 180 },
-  { name: "Caesar", room: "Strategy", action: "BUY", score: 9.8, confidence: 96.5, latencyMs: 110 },
-  { name: "Sage", room: "Strategy", action: "BUY", score: 8.9, confidence: 91.2, latencyMs: 125 },
-  { name: "Guardian", room: "Strategy", action: "BUY", score: 8.7, confidence: 88.0, latencyMs: 140 },
-  { name: "Vanguard", room: "Strategy", action: "BUY", score: 9.4, confidence: 93.8, latencyMs: 115 },
-  { name: "Titan", room: "Math", action: "BUY", score: 9.5, confidence: 95.0, latencyMs: 85 },
-  { name: "Atlas", room: "Math", action: "BUY", score: 9.0, confidence: 90.5, latencyMs: 92 },
-  { name: "Forge", room: "Math", action: "BUY", score: 8.6, confidence: 87.2, latencyMs: 78 },
-  { name: "Sentinel", room: "Math", action: "BUY", score: 9.9, confidence: 98.4, latencyMs: 82 },
+const AGENT_CARDS = [
+  { id: "market", name: "Market Agent", badge: "Bullish", color: "emerald",
+    sub: "Class: Trending high vol", l1: "ATR", v1: "0.42", l2: "RST", v2: "64.2" },
+  { id: "signal", name: "Signal Agent", badge: "Active", color: "purple",
+    sub: "Signals: 14 long / 2 short", l1: "Cluster", v1: "MACD_CROSS", l2: "Strength", v2: "High" },
+  { id: "ml", name: "ML Predictor", badge: "94% ACC", color: "blue",
+    sub: "Pred: +1.2% in 4H", l1: "Model", v1: "Transformer_V8", l2: "Confidence", v2: "0.88" },
+  { id: "risk", name: "Risk Control", badge: "Bullish", color: "emerald",
+    sub: "Exposure: 75% Limit", l1: "Drawdown", v1: "0.12%", l2: "Breach", v2: "None" },
 ];
 
-export default function SovereignShowcasePage() {
-  const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
+const BAR_DATA = [
+  { day: "Mon 24", h: 40 }, { day: "Tue 25", h: 60 }, { day: "Wed 26", h: 24 },
+  { day: "Thu 26", h: 70, active: true }, { day: "Fri 27", h: 20 },
+  { day: "Sat 28", h: 35 }, { day: "Sun 29", h: 50 },
+];
+
+const NAV = ["Dashboard", "Markets", "Risk", "Portfolio", "Logs"];
+const TABS = ["Ingest", "Features", "Agents", "Execute"];
+
+export default function SovereignCockpit() {
+  const [activeNav, setActiveNav] = useState("Dashboard");
+  const [activeTab, setActiveTab] = useState("Agents");
   const [isHalted, setIsHalted] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [riskSlider, setRiskSlider] = useState(1.0);
-  const [throughput, setThroughput] = useState(1940);
-  const [stages, setStages] = useState<ExecutionStage[]>([
-    { id: "s1", name: "Signal Ingestion", subsystem: "Kafka / Arrow Pipeline", latencyUs: 82, status: "OPTIMAL" },
-    { id: "s2", name: "Price Oracle Verification", subsystem: "Tukey IQR / Hampel Filter", latencyUs: 145, status: "OPTIMAL" },
-    { id: "s3", name: "11-Agent Consensus Swarm", subsystem: "AsyncIO Parallel Inference", latencyUs: 4180, status: "OPTIMAL" },
-    { id: "s4", name: "Hardware Risk Governor", subsystem: "C++20 SIMD Variance Engine", latencyUs: 18, status: "OPTIMAL" },
-    { id: "s5", name: "FIX Execution Bridge", subsystem: "QuickFIX/J 4.4 Direct Venue", latencyUs: 185, status: "OPTIMAL" },
-  ]);
-
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: "1", timestamp: "22:45:01.104", subsystem: "CORE", message: "Sovereign multi-agent telemetry initialized.", type: "info" },
-    { id: "2", timestamp: "22:45:01.420", subsystem: "SWARM", message: "11 agents synchronized across Sentiment, Strategy, and Math rooms.", type: "info" },
-    { id: "3", timestamp: "22:45:01.815", subsystem: "ORACLE", message: "Pairwise divergence 0.03% within 0.10% threshold [VERIFIED].", type: "success" },
-    { id: "4", timestamp: "22:45:02.110", subsystem: "RISK", message: "Drawdown monitor nominal: 0.00% daily / 3.00% circuit ceiling.", type: "info" },
-  ]);
-
-  const consoleEndRef = useRef<HTMLDivElement>(null);
+  const [msgs, setMsgs] = useState(1940);
+  const [agreement, setAgreement] = useState(94.2);
+  const [sharpe, setSharpe] = useState(3.82);
+  const [bars, setBars] = useState(BAR_DATA.map(b => b.h));
 
   useEffect(() => {
-    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  // Live streaming telemetry simulation
-  useEffect(() => {
-    if (isPaused || isHalted) return;
-
-    const interval = setInterval(() => {
-      setStages((prev) =>
-        prev.map((s, idx) => {
-          const jitter = Math.floor(Math.random() * 10 - 5);
-          const base = [82, 145, 4180, 18, 185][idx];
-          return {
-            ...s,
-            latencyUs: Math.max(12, base + jitter),
-            status: isHalted ? "HALTED" : "OPTIMAL",
-          };
-        })
-      );
-
-      setThroughput((prev) => Math.floor(prev + (Math.random() * 30 - 15)));
-    }, 1300);
-
-    return () => clearInterval(interval);
-  }, [isPaused, isHalted]);
-
-  const pushLog = (subsystem: string, message: string, type: LogEntry["type"]) => {
-    const now = new Date();
-    const ts = `${now.toTimeString().split(" ")[0]}.${String(now.getMilliseconds()).padStart(3, "0")}`;
-    setLogs((prev) => [...prev.slice(-30), { id: String(Date.now()), timestamp: ts, subsystem, message, type }]);
-  };
-
-  const handleDispatchSignal = () => {
-    if (isHalted) {
-      pushLog("CIRCUIT", "DISPATCH REJECTED: Emergency circuit breaker engaged.", "error");
-      return;
-    }
-
-    pushLog("INGEST", "INCOMING TELEMETRY: EUR/USD 1.08502 (Spread: 0.8 pips)", "info");
-    setTimeout(() => {
-      pushLog("SWARM", "PARALLEL INFERENCE: 11/11 agents report 94.2% agreement [BUY AUTHORIZED]", "success");
-    }, 300);
-
-    setTimeout(() => {
-      pushLog("RISK", `INVARIANT CHECK: Max risk allocated ${riskSlider.toFixed(1)}% | All safety gates [PASS]`, "success");
-    }, 600);
-
-    setTimeout(() => {
-      pushLog("VENUE", "FIX 4.4 ORDER ROUTED: IOC execution filled with zero slippage.", "success");
-    }, 900);
-  };
-
-  const handleToggleHalt = () => {
-    if (isHalted) {
-      setIsHalted(false);
-      pushLog("CIRCUIT", "CIRCUIT BREAKER RESET: Normal execution state restored.", "success");
-    } else {
-      setIsHalted(true);
-      pushLog("CIRCUIT", "EMERGENCY HALT: All order routing locked down instantly.", "error");
-    }
-  };
+    if (isHalted) return;
+    const iv = setInterval(() => {
+      setMsgs(p => Math.floor(p + Math.random() * 30 - 15));
+      setAgreement(p => Math.min(99, Math.max(88, p + (Math.random() * 0.4 - 0.2))));
+      setSharpe(p => Math.max(3.5, Math.min(4.2, p + (Math.random() * 0.04 - 0.02))));
+      setBars(p => p.map((v, i) => BAR_DATA[i].active ? v : Math.max(10, Math.min(90, v + Math.random() * 6 - 3))));
+    }, 1800);
+    return () => clearInterval(iv);
+  }, [isHalted]);
 
   return (
-    <div className="showcase-container">
-      {/* 1. RECRUITER EXECUTIVE HEADER */}
-      <header className="recruiter-header">
-        <div className="profile-summary">
-          <div className="brand-row">
-            <span className="brand-title">SOVEREIGN COCKPIT</span>
-            <span className="brand-badge">ARCHITECTURE DEMONSTRATION</span>
-          </div>
-          <div className="author-line">
-            Architected by <span className="author-name">Usman Abayomi Bamidele</span> · Senior Backend & AI Systems Engineer
+    <div className="app-shell">
+      {/* ── SIDEBAR ── */}
+      <aside className="sidebar">
+        <div className="sb-logo">
+          <div className="sb-mark">SC</div>
+          <span className="sb-title">Sovereign</span>
+        </div>
+
+        <div className="sb-user">
+          <div className="sb-avatar">UB</div>
+          <div>
+            <div className="sb-name">Usman Bamidele</div>
+            <div className="sb-id">ID: 942-001</div>
           </div>
         </div>
 
-        <div className="cta-group">
-          <a
-            href="https://github.com/amazing200guy1-a11y"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-secondary"
-          >
-            GitHub Portfolio (9 Repos)
+        <nav className="sb-nav">
+          <div className="sb-section">Project</div>
+          {NAV.map(item => (
+            <button key={item} className={`sb-item ${activeNav === item ? "active" : ""}`}
+              onClick={() => setActiveNav(item)}>{item}</button>
+          ))}
+          <div className="sb-section">System</div>
+          <button className="sb-item">Settings</button>
+          <button className="sb-item">Support</button>
+        </nav>
+
+        <div className="sb-bottom">
+          <a href="https://github.com/amazing200guy1-a11y" target="_blank" rel="noreferrer" className="sb-link">
+            GitHub Portfolio (9 repos)
           </a>
-          <a
-            href="https://www.linkedin.com/in/usman-bamidele"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-secondary"
-          >
+          <a href="https://linkedin.com/in/usman-bamidele" target="_blank" rel="noreferrer" className="sb-link">
             LinkedIn
           </a>
-          <a
-            href="mailto:usmanbamidele200@gmail.com"
-            className="btn-primary"
-          >
-            Get in Touch / Hire
+          <a href="mailto:usmanbamidele200@gmail.com" className="sb-hire">
+            Hire / Get in Touch
           </a>
         </div>
-      </header>
+      </aside>
 
-      {/* 2. RECRUITER CONTEXT & STEALTH NOTICE RIBBON */}
-      <div className="disclaimer-strip">
-        <div className="disclaimer-left">
-          <span className={`pulse-dot ${isHalted ? "red" : ""}`} />
-          <span>
-            {isHalted
-              ? "CIRCUIT BREAKER ENGAGED · EXECUTION GATES LOCKED"
-              : "MULTI-AGENT CONSENSUS MESH: ACTIVE · TELEMETRY FEED LIVE"}
-          </span>
-        </div>
-        <div style={{ color: "var(--text-dim)" }}>
-          Notice: Proprietary execution kernel & broker bridges operate under stealth NDA. This demo simulates live telemetry.
-        </div>
-      </div>
-
-      {/* 3. KEY METRICS STRIP */}
-      <section className="kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-title">Consensus Super-Majority</div>
-          <div className="kpi-number" style={{ color: "var(--accent-emerald)" }}>&ge; 92.0%</div>
-          <div className="kpi-sub">Strict Fail-Closed Gate</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title">Active AI Agents</div>
-          <div className="kpi-number">11 / 11</div>
-          <div className="kpi-sub">3 Analytical Rooms</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title">Pipeline Throughput</div>
-          <div className="kpi-number">{isHalted ? "0" : throughput.toLocaleString()}</div>
-          <div className="kpi-sub">Messages / Second</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title">Execution Budget</div>
-          <div className="kpi-number" style={{ color: "var(--accent-blue)" }}>&lt; 500 &micro;s</div>
-          <div className="kpi-sub">Sub-ms Target SLA</div>
-        </div>
-      </section>
-
-      {/* 4. MAIN WORKSTATION: MULTI-AGENT LAYER & PIPELINE */}
-      <div className="workstation-layout">
-        {/* LEFT PANEL: 11-AGENT DECISION MATRIX */}
-        <div className="panel-card">
-          <div className="panel-header">
-            <div>
-              <div className="panel-heading">Multi-Agent Consensus Layer</div>
-              <div className="panel-subheading">11 specialized models evaluating live market state in parallel</div>
-            </div>
-            <span className="mono" style={{ fontSize: "11px", color: "var(--accent-emerald)", fontWeight: 700 }}>
-              AGREEMENT: 94.2% [BUY]
-            </span>
-          </div>
-
-          <div className="agents-matrix">
-            {agents.map((agent) => (
-              <div key={agent.name} className="agent-item">
-                <div className="agent-top">
-                  <span className="agent-title">{agent.name}</span>
-                  <span className={`agent-pill ${agent.room.toLowerCase()}`}>
-                    {agent.room}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.4rem" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent-emerald)" }}>
-                    {agent.action} · {agent.confidence}% CONF
-                  </span>
-                  <span className="mono" style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    {agent.score.toFixed(1)}/10
-                  </span>
-                </div>
-                <div className="agent-stats">
-                  <span>Latency: {agent.latencyMs}ms</span>
-                  <span>Model: Specialized</span>
-                </div>
-              </div>
+      {/* ── MAIN ── */}
+      <div className="main-area">
+        {/* Top bar */}
+        <header className="top-bar">
+          <div className="tb-tabs">
+            {TABS.map(t => (
+              <button key={t} className={`tb-tab ${activeTab === t ? "active" : ""}`}
+                onClick={() => setActiveTab(t)}>{t}</button>
             ))}
           </div>
-        </div>
+          <div className="tb-search">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input className="tb-input" placeholder="Search..." />
+            <kbd className="tb-kbd">⌘K</kbd>
+          </div>
+          <div className="tb-actions">
+            <div className={`pipeline-pill ${isHalted ? "halted" : "live"}`}>
+              <span className="pipe-dot" />
+              {isHalted ? "Pipeline halted" : "Pipeline live"}
+            </div>
+            <button className={`recal-btn ${isHalted ? "reset" : ""}`} onClick={() => setIsHalted(h => !h)}>
+              {isHalted ? "Reset System" : "Recalibrate"}
+            </button>
+          </div>
+        </header>
 
-        {/* RIGHT PANEL: 5-STAGE PIPELINE & RISK CONTROLS */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          {/* Sub-ms Pipeline */}
-          <div className="panel-card">
-            <div className="panel-header">
-              <div>
-                <div className="panel-heading">Sub-Millisecond Execution Pipeline</div>
-                <div className="panel-subheading">Deterministic stage-by-stage profiling</div>
+        {/* Dashboard */}
+        <main className="dash">
+          {/* Hero */}
+          <div className="hero-row">
+            <div className="hero-left">
+              <div className="hero-eyebrow">Sovereign Cockpit</div>
+              <div className="hero-sub">Aggregate consensus score</div>
+              <div className="hero-val">{agreement.toFixed(2)}%</div>
+              <span className="hero-badge">+{(agreement - 90).toFixed(1)}% above threshold · 11/11 agents aligned</span>
+            </div>
+            <div className="kpi-row">
+              <div className="kpi-mini">
+                <div className="kpi-lbl">Kelly Criterion</div>
+                <div className="kpi-val">0.145</div>
+                <svg viewBox="0 0 60 20" className="sparkline">
+                  <polyline points="0,18 10,13 20,15 30,7 40,11 50,3 60,5"
+                    fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
               </div>
-              <span className="mono" style={{ fontSize: "11px", color: "var(--accent-blue)" }}>
-                IOC / FOK ENGINE
-              </span>
+              <div className="kpi-mini">
+                <div className="kpi-lbl">Active Agents</div>
+                <div className="kpi-val blue">11 / 11</div>
+                <div className="kpi-sub-lbl">3 analytical rooms</div>
+              </div>
+              <div className="kpi-mini">
+                <div className="kpi-lbl">Risk Parity</div>
+                <div className="kpi-val">Balanced</div>
+                <span className="live-badge">Live</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Middle row */}
+          <div className="mid-row">
+            {/* Bar chart */}
+            <div className="chart-card">
+              <div className="chart-top">
+                <div>
+                  <div className="c-label">Pipeline Throughput</div>
+                  <div className="c-val">{isHalted ? "0" : msgs.toLocaleString()}</div>
+                  <span className={`c-badge ${isHalted ? "neg" : "pos"}`}>
+                    {isHalted ? "SYSTEM HALTED" : "+10.5% from last period"}
+                  </span>
+                </div>
+                <div className="msgs-pill">msgs / sec</div>
+              </div>
+              <div className="bar-area">
+                {BAR_DATA.map((bar, i) => (
+                  <div key={bar.day} className="bar-col">
+                    <div className="bar-track">
+                      <div className={`bar-fill ${bar.active ? "active" : ""}`}
+                        style={{ height: `${isHalted && !bar.active ? 5 : bars[i]}%` }} />
+                    </div>
+                    <div className="bar-lbl">{bar.day}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="pipeline-list">
-              {stages.map((stage) => (
-                <div key={stage.id} className="stage-row">
-                  <div>
-                    <div className="stage-name">{stage.name}</div>
-                    <div className="stage-tech">{stage.subsystem}</div>
+            {/* Risk panel */}
+            <div className="risk-card">
+              <div className="rc-title">Global Risk Exposure</div>
+              <div className="orb-wrap"><div className="orb" /></div>
+              <div className="risk-stats">
+                {[
+                  { l: "VAR (95%)", v: "-2.4%", cls: "neg" },
+                  { l: "Sharpe ratio", v: sharpe.toFixed(2), cls: "pos" },
+                  { l: "Max Drawdown", v: "$12.5K", cls: "" },
+                ].map(r => (
+                  <div key={r.l} className="rs-row">
+                    <span className="rs-lbl">{r.l}</span>
+                    <span className={`rs-val ${r.cls}`}>{r.v}</span>
                   </div>
-                  <div className="stage-metrics">
-                    <div className="stage-latency">
-                      {isHalted ? "—" : `${stage.latencyUs.toLocaleString()} µs`}
-                    </div>
-                    <div className="stage-status" style={{ color: isHalted ? "var(--accent-rose)" : "var(--accent-emerald)" }}>
-                      {isHalted ? "HALTED" : stage.status}
-                    </div>
+                ))}
+              </div>
+              <div className="strategy-box">
+                <div className="sb-eyebrow">Leader: RL Agent Strategy</div>
+                <div className="sb-name">RL_BETA_V4</div>
+                <span className="sb-alpha">Net Alpha: +22.4% / mo</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Agent cards */}
+          <div className="agents-section">
+            <div className="sec-title">Multi Agent Decision Layer</div>
+            <div className="agents-grid">
+              {AGENT_CARDS.map(a => (
+                <div key={a.id} className="ac">
+                  <div className="ac-top">
+                    <div className="ac-icon" />
+                    <span className={`ac-badge ${a.color}`}>{a.badge}</span>
+                  </div>
+                  <div className="ac-name">{a.name}</div>
+                  <div className="ac-sub">{a.sub}</div>
+                  <div className="ac-stats">
+                    <div className="ac-stat"><div className="asl">{a.l1}</div><div className="asv">{a.v1}</div></div>
+                    <div className="ac-stat"><div className="asl">{a.l2}</div><div className="asv">{a.v2}</div></div>
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* Interactive Control Buttons */}
-            <div className="control-footer">
-              <button
-                className="btn-primary"
-                onClick={handleDispatchSignal}
-                disabled={isHalted}
-                style={{ opacity: isHalted ? 0.4 : 1 }}
-              >
-                Dispatch Test Execution Signal
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setIsPaused(!isPaused)}
-              >
-                {isPaused ? "Resume Telemetry" : "Freeze Stream"}
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={handleToggleHalt}
-                style={{
-                  color: isHalted ? "var(--accent-emerald)" : "var(--accent-rose)",
-                  borderColor: isHalted ? "var(--border-emerald)" : "rgba(244, 63, 94, 0.3)",
-                }}
-              >
-                {isHalted ? "Reset Circuit Breaker" : "Engage Emergency Halt"}
-              </button>
-            </div>
           </div>
 
-          {/* Risk Governor Panel */}
-          <div className="panel-card" style={{ padding: "1.25rem 1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
-              <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Deterministic Risk Governor</span>
-              <span className="mono" style={{ color: "var(--accent-blue)", fontWeight: 700 }}>
-                {riskSlider.toFixed(1)}% Capital Allocation
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0.1"
-              max="5.0"
-              step="0.1"
-              value={riskSlider}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setRiskSlider(val);
-                pushLog("RISK", `Risk cap updated to ${val.toFixed(1)}% equity.`, "warn");
-              }}
-              style={{ width: "100%", accentColor: "var(--accent-blue)", cursor: "pointer" }}
-            />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-dim)", marginTop: "0.35rem" }}>
-              <span>0.1% (Low Exposure)</span>
-              <span>2.5% (Institutional Normal)</span>
-              <span>5.0% (Hard Max Floor)</span>
-            </div>
+          {/* Stealth footer */}
+          <div className="stealth-bar">
+            <span className="sb-dot" />
+            <span>Proprietary execution kernel &amp; broker bridges operate under stealth NDA.</span>
+            <span className="sb-divider">·</span>
+            <span>Sovereign Cockpit — Architecture Demonstration by <strong>Usman Abayomi Bamidele</strong></span>
           </div>
-        </div>
+        </main>
       </div>
-
-      {/* 5. REAL-TIME AUDIT LOG */}
-      <div className="stream-console">
-        <div className="mono" style={{ fontSize: "10.5px", color: "var(--text-muted)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          SYS_AUDIT_STREAM // Real-Time Execution Log
-        </div>
-        {logs.map((log) => (
-          <div key={log.id} className="log-line">
-            <span style={{ color: "var(--text-dim)", marginRight: "0.6rem" }}>[{log.timestamp}]</span>
-            <span style={{ color: "var(--accent-blue)", marginRight: "0.6rem" }}>[{log.subsystem}]</span>
-            <span
-              style={{
-                color:
-                  log.type === "success"
-                    ? "var(--accent-emerald)"
-                    : log.type === "warn"
-                    ? "var(--accent-amber)"
-                    : log.type === "error"
-                    ? "var(--accent-rose)"
-                    : "var(--text-main)",
-              }}
-            >
-              {log.message}
-            </span>
-          </div>
-        ))}
-        <div ref={consoleEndRef} />
-      </div>
-
-      {/* 6. RECRUITER PROJECT OVERVIEW & ARCHITECTURE BRIEF */}
-      <section style={{ marginTop: "2rem", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "1.75rem 2rem" }}>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0 0 0.5rem" }}>Engineering Architecture & System Invariants</h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: "0 0 1.25rem", maxWidth: "900px" }}>
-          Sovereign Cockpit is the operator telemetry layer for a hybrid quantitative trading system. It fuses a distributed 11-agent AI consensus swarm with a deterministic sub-millisecond execution kernel.
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "1.1rem 1.25rem" }}>
-            <div style={{ fontWeight: 600, color: "var(--accent-blue)", marginBottom: "0.35rem" }}>1. Multi-Agent Consensus Swarm</div>
-            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-              Evaluates market data across Sentiment, Strategy, and Math rooms concurrently via AsyncIO. Enforces a strict 92% weighted consensus gate before authorizing any downstream execution signal.
-            </div>
-          </div>
-
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "1.1rem 1.25rem" }}>
-            <div style={{ fontWeight: 600, color: "var(--accent-emerald)", marginBottom: "0.35rem" }}>2. Deterministic Risk Kernel</div>
-            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-              Hardware-floor constraints written with SIMD variance checks and strict capital defense. Features a hard 3% daily drawdown kill-switch with zero override capability.
-            </div>
-          </div>
-
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "1.1rem 1.25rem" }}>
-            <div style={{ fontWeight: 600, color: "var(--accent-amber)", marginBottom: "0.35rem" }}>3. Production Rigor & Testing</div>
-            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-              Core execution layers are backed by 240+ automated unit, integration, and chaos tests with a 100% green pass rate, covering HMAC webhook verification and race condition defenses.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. FOOTER */}
-      <footer className="recruiter-footer">
-        <div>
-          <strong>Usman Abayomi Bamidele</strong> · Portfolio Showcase Edition
-        </div>
-        <div>
-          Next.js 14 · React 18 · TypeScript Strict · Tailwind-Style Utilities
-        </div>
-      </footer>
     </div>
   );
 }
