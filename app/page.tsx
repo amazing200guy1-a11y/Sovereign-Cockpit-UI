@@ -2,336 +2,410 @@
 
 import React, { useEffect, useState, useRef } from "react";
 
-interface TelemetryStage {
+interface Agent {
   name: string;
-  subsystem: string;
-  latencyUs: number;
-  status: "OK" | "ACTIVE" | "HALTED";
-  consensusGate: string;
-}
-
-interface AgentMatrixRow {
-  name: string;
-  room: "SENTIMENT" | "STRATEGY" | "MATH";
-  vote: "BUY" | "SELL" | "HOLD";
+  room: "Sentiment" | "Strategy" | "Math";
+  action: "BUY" | "SELL" | "HOLD";
   score: number;
   confidence: number;
   latencyMs: number;
 }
 
+interface ExecutionStage {
+  id: string;
+  name: string;
+  subsystem: string;
+  latencyUs: number;
+  status: "OPTIMAL" | "ACTIVE" | "HALTED";
+}
+
 interface LogEntry {
   id: string;
   timestamp: string;
-  source: string;
+  subsystem: string;
   message: string;
-  type: "info" | "success" | "alert" | "error";
+  type: "info" | "success" | "warn" | "error";
 }
 
-const AGENTS_LIST: AgentMatrixRow[] = [
-  { name: "THE DON", room: "SENTIMENT", vote: "BUY", score: 9.2, confidence: 94.1, latencyMs: 142 },
-  { name: "PHANTOM", room: "SENTIMENT", vote: "BUY", score: 8.8, confidence: 89.4, latencyMs: 165 },
-  { name: "ORACLE", room: "SENTIMENT", vote: "BUY", score: 9.1, confidence: 92.0, latencyMs: 180 },
-  { name: "CAESAR", room: "STRATEGY", vote: "BUY", score: 9.8, confidence: 96.5, latencyMs: 110 },
-  { name: "SAGE", room: "STRATEGY", vote: "BUY", score: 8.9, confidence: 91.2, latencyMs: 125 },
-  { name: "GUARDIAN", room: "STRATEGY", vote: "BUY", score: 8.7, confidence: 88.0, latencyMs: 140 },
-  { name: "VANGUARD", room: "STRATEGY", vote: "BUY", score: 9.4, confidence: 93.8, latencyMs: 115 },
-  { name: "TITAN", room: "MATH", vote: "BUY", score: 9.5, confidence: 95.0, latencyMs: 85 },
-  { name: "ATLAS", room: "MATH", vote: "BUY", score: 9.0, confidence: 90.5, latencyMs: 92 },
-  { name: "FORGE", room: "MATH", vote: "BUY", score: 8.6, confidence: 87.2, latencyMs: 78 },
-  { name: "SENTINEL", room: "MATH", vote: "BUY", score: 9.9, confidence: 98.4, latencyMs: 82 },
+const INITIAL_AGENTS: Agent[] = [
+  { name: "The Don", room: "Sentiment", action: "BUY", score: 9.2, confidence: 94.1, latencyMs: 142 },
+  { name: "Phantom", room: "Sentiment", action: "BUY", score: 8.8, confidence: 89.4, latencyMs: 165 },
+  { name: "Oracle", room: "Sentiment", action: "BUY", score: 9.1, confidence: 92.0, latencyMs: 180 },
+  { name: "Caesar", room: "Strategy", action: "BUY", score: 9.8, confidence: 96.5, latencyMs: 110 },
+  { name: "Sage", room: "Strategy", action: "BUY", score: 8.9, confidence: 91.2, latencyMs: 125 },
+  { name: "Guardian", room: "Strategy", action: "BUY", score: 8.7, confidence: 88.0, latencyMs: 140 },
+  { name: "Vanguard", room: "Strategy", action: "BUY", score: 9.4, confidence: 93.8, latencyMs: 115 },
+  { name: "Titan", room: "Math", action: "BUY", score: 9.5, confidence: 95.0, latencyMs: 85 },
+  { name: "Atlas", room: "Math", action: "BUY", score: 9.0, confidence: 90.5, latencyMs: 92 },
+  { name: "Forge", room: "Math", action: "BUY", score: 8.6, confidence: 87.2, latencyMs: 78 },
+  { name: "Sentinel", room: "Math", action: "BUY", score: 9.9, confidence: 98.4, latencyMs: 82 },
 ];
 
-export default function SovereignTerminalPage() {
+export default function SovereignShowcasePage() {
+  const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
   const [isHalted, setIsHalted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [riskCap, setRiskCap] = useState(1.0);
-  const [meanLatency, setMeanLatency] = useState(412); // microseconds
-  const [throughput, setThroughput] = useState(1840);
-  const [stages, setStages] = useState<TelemetryStage[]>([
-    { name: "SIGNAL_INGEST", subsystem: "Kafka / Arrow", latencyUs: 84, status: "OK", consensusGate: "100.0%" },
-    { name: "ORACLE_VERIFY", subsystem: "Tukey IQR / Hampel", latencyUs: 142, status: "OK", consensusGate: "98.4%" },
-    { name: "SWARM_CONSENSUS", subsystem: "11-Agent Mesh", latencyUs: 4350, status: "OK", consensusGate: "94.2%" },
-    { name: "RISK_GOVERNOR", subsystem: "SIMD C++ Kernel", latencyUs: 18, status: "OK", consensusGate: "ACTIVE" },
-    { name: "FIX_DISPATCH", subsystem: "QuickFIX/J 4.4", latencyUs: 184, status: "OK", consensusGate: "IOC_READY" },
+  const [riskSlider, setRiskSlider] = useState(1.0);
+  const [throughput, setThroughput] = useState(1940);
+  const [stages, setStages] = useState<ExecutionStage[]>([
+    { id: "s1", name: "Signal Ingestion", subsystem: "Kafka / Arrow Pipeline", latencyUs: 82, status: "OPTIMAL" },
+    { id: "s2", name: "Price Oracle Verification", subsystem: "Tukey IQR / Hampel Filter", latencyUs: 145, status: "OPTIMAL" },
+    { id: "s3", name: "11-Agent Consensus Swarm", subsystem: "AsyncIO Parallel Inference", latencyUs: 4180, status: "OPTIMAL" },
+    { id: "s4", name: "Hardware Risk Governor", subsystem: "C++20 SIMD Variance Engine", latencyUs: 18, status: "OPTIMAL" },
+    { id: "s5", name: "FIX Execution Bridge", subsystem: "QuickFIX/J 4.4 Direct Venue", latencyUs: 185, status: "OPTIMAL" },
   ]);
 
   const [logs, setLogs] = useState<LogEntry[]>([
-    { id: "1", timestamp: "22:31:02.104", source: "KERNEL", message: "Deterministic execution state machine initialized.", type: "info" },
-    { id: "2", timestamp: "22:31:02.842", source: "SWARM", message: "11/11 agents synchronized across Sentiment, Strategy, and Math.", type: "info" },
-    { id: "3", timestamp: "22:31:03.418", source: "ORACLE", message: "Cross-venue tick variance within 0.04% boundary [OK].", type: "success" },
-    { id: "4", timestamp: "22:31:04.012", source: "RISK", message: "Drawdown budget confirmed: 0.00% daily / 3.00% max cap.", type: "info" },
+    { id: "1", timestamp: "22:45:01.104", subsystem: "CORE", message: "Sovereign multi-agent telemetry initialized.", type: "info" },
+    { id: "2", timestamp: "22:45:01.420", subsystem: "SWARM", message: "11 agents synchronized across Sentiment, Strategy, and Math rooms.", type: "info" },
+    { id: "3", timestamp: "22:45:01.815", subsystem: "ORACLE", message: "Pairwise divergence 0.03% within 0.10% threshold [VERIFIED].", type: "success" },
+    { id: "4", timestamp: "22:45:02.110", subsystem: "RISK", message: "Drawdown monitor nominal: 0.00% daily / 3.00% circuit ceiling.", type: "info" },
   ]);
 
   const consoleEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll logs
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // Streaming latency jitter
+  // Live streaming telemetry simulation
   useEffect(() => {
     if (isPaused || isHalted) return;
 
     const interval = setInterval(() => {
       setStages((prev) =>
         prev.map((s, idx) => {
-          const jitter = Math.floor(Math.random() * 12 - 6);
-          const base = [85, 140, 4200, 18, 180][idx];
+          const jitter = Math.floor(Math.random() * 10 - 5);
+          const base = [82, 145, 4180, 18, 185][idx];
           return {
             ...s,
             latencyUs: Math.max(12, base + jitter),
-            status: isHalted ? "HALTED" : "OK",
+            status: isHalted ? "HALTED" : "OPTIMAL",
           };
         })
       );
 
-      setThroughput((prev) => Math.floor(prev + (Math.random() * 40 - 20)));
-      setMeanLatency((prev) => Math.max(380, Math.floor(prev + (Math.random() * 8 - 4))));
-    }, 1200);
+      setThroughput((prev) => Math.floor(prev + (Math.random() * 30 - 15)));
+    }, 1300);
 
     return () => clearInterval(interval);
   }, [isPaused, isHalted]);
 
-  const addLog = (source: string, message: string, type: LogEntry["type"]) => {
+  const pushLog = (subsystem: string, message: string, type: LogEntry["type"]) => {
     const now = new Date();
     const ts = `${now.toTimeString().split(" ")[0]}.${String(now.getMilliseconds()).padStart(3, "0")}`;
-    setLogs((prev) => [...prev.slice(-40), { id: String(Date.now()), timestamp: ts, source, message, type }]);
+    setLogs((prev) => [...prev.slice(-30), { id: String(Date.now()), timestamp: ts, subsystem, message, type }]);
   };
 
   const handleDispatchSignal = () => {
     if (isHalted) {
-      addLog("CIRCUIT", "DISPATCH REJECTED: Hard emergency halt active on execution bridge.", "error");
+      pushLog("CIRCUIT", "DISPATCH REJECTED: Emergency circuit breaker engaged.", "error");
       return;
     }
 
-    addLog("INGEST", "INCOMING MARKET EVENT: EURUSD 1.08502 (Spread: 0.8 pips)", "info");
+    pushLog("INGEST", "INCOMING TELEMETRY: EUR/USD 1.08502 (Spread: 0.8 pips)", "info");
     setTimeout(() => {
-      addLog("SWARM", "PARALLEL EVALUATION: 11 agents reporting 94.2% BUY consensus.", "success");
-    }, 350);
+      pushLog("SWARM", "PARALLEL INFERENCE: 11/11 agents report 94.2% agreement [BUY AUTHORIZED]", "success");
+    }, 300);
 
     setTimeout(() => {
-      addLog("RISK", `PARAM CHECK: Risk allocated ${riskCap.toFixed(1)}% | Invariants verified [PASS]`, "success");
+      pushLog("RISK", `INVARIANT CHECK: Max risk allocated ${riskSlider.toFixed(1)}% | All safety gates [PASS]`, "success");
     }, 600);
 
     setTimeout(() => {
-      addLog("FIX_4.4", "IOC ORDER ROUTED TO VENUE: CLORDID-884210 [STATUS: FILLED]", "success");
-    }, 850);
+      pushLog("VENUE", "FIX 4.4 ORDER ROUTED: IOC execution filled with zero slippage.", "success");
+    }, 900);
   };
 
   const handleToggleHalt = () => {
     if (isHalted) {
       setIsHalted(false);
-      addLog("CIRCUIT", "CIRCUIT BREAKER RESET: Resuming normal execution state.", "success");
+      pushLog("CIRCUIT", "CIRCUIT BREAKER RESET: Normal execution state restored.", "success");
     } else {
       setIsHalted(true);
-      addLog("CIRCUIT", "CRITICAL OVERRIDE: Emergency halt engaged. All outbound orders blocked.", "error");
+      pushLog("CIRCUIT", "EMERGENCY HALT: All order routing locked down instantly.", "error");
     }
   };
 
   return (
-    <div className="terminal-viewport">
-      {/* Top Bloomberg Command Bar */}
-      <header className="top-command-bar">
-        <div className="terminal-brand">
-          <span className="terminal-title">SOVEREIGN TERMINAL [OPERATOR_STATION]</span>
-          <span className="terminal-badge">VENUE: DIRECT FIX 4.4</span>
-          <span className="terminal-badge">REGIME: SUB-MS EXECUTION</span>
+    <div className="showcase-container">
+      {/* 1. RECRUITER EXECUTIVE HEADER */}
+      <header className="recruiter-header">
+        <div className="profile-summary">
+          <div className="brand-row">
+            <span className="brand-title">SOVEREIGN COCKPIT</span>
+            <span className="brand-badge">ARCHITECTURE DEMONSTRATION</span>
+          </div>
+          <div className="author-line">
+            Architected by <span className="author-name">Usman Abayomi Bamidele</span> · Senior Backend & AI Systems Engineer
+          </div>
         </div>
-        <div className="system-status">
-          <span className={`status-dot ${isHalted ? "halted" : ""}`} />
-          <span style={{ color: isHalted ? "var(--red)" : "var(--green)" }}>
-            {isHalted ? "SYSTEM HALTED [CIRCUIT_OPEN]" : "ENGINE ONLINE [SYSTEM_NOMINAL]"}
-          </span>
+
+        <div className="cta-group">
+          <a
+            href="https://github.com/amazing200guy1-a11y"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary"
+          >
+            GitHub Portfolio (9 Repos)
+          </a>
+          <a
+            href="https://www.linkedin.com/in/usman-bamidele"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary"
+          >
+            LinkedIn
+          </a>
+          <a
+            href="mailto:usmanbamidele200@gmail.com"
+            className="btn-primary"
+          >
+            Get in Touch / Hire
+          </a>
         </div>
       </header>
 
-      {/* Function Keys Command Bar */}
-      <section className="fkey-strip">
-        <button className="fkey-btn amber" onClick={handleDispatchSignal}>
-          <span className="fkey-tag">[F1]</span>DISPATCH TEST SIGNAL
-        </button>
-        <button className="fkey-btn" onClick={() => setIsPaused(!isPaused)}>
-          <span className="fkey-tag">[F2]</span>{isPaused ? "RESUME STREAM" : "FREEZE TELEMETRY"}
-        </button>
-        <button className={`fkey-btn ${isHalted ? "amber" : "red"}`} onClick={handleToggleHalt}>
-          <span className="fkey-tag">[F5]</span>{isHalted ? "RESET CIRCUIT BREAKER" : "EMERGENCY HALT"}
-        </button>
-        <button
-          className="fkey-btn"
-          onClick={() => addLog("DIAGNOSTIC", "Memory cache flushed. Lock-free queues operating at 0% saturation.", "info")}
-        >
-          <span className="fkey-tag">[F9]</span>RUN DIAGNOSTIC
-        </button>
+      {/* 2. RECRUITER CONTEXT & STEALTH NOTICE RIBBON */}
+      <div className="disclaimer-strip">
+        <div className="disclaimer-left">
+          <span className={`pulse-dot ${isHalted ? "red" : ""}`} />
+          <span>
+            {isHalted
+              ? "CIRCUIT BREAKER ENGAGED · EXECUTION GATES LOCKED"
+              : "MULTI-AGENT CONSENSUS MESH: ACTIVE · TELEMETRY FEED LIVE"}
+          </span>
+        </div>
+        <div style={{ color: "var(--text-dim)" }}>
+          Notice: Proprietary execution kernel & broker bridges operate under stealth NDA. This demo simulates live telemetry.
+        </div>
+      </div>
+
+      {/* 3. KEY METRICS STRIP */}
+      <section className="kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-title">Consensus Super-Majority</div>
+          <div className="kpi-number" style={{ color: "var(--accent-emerald)" }}>&ge; 92.0%</div>
+          <div className="kpi-sub">Strict Fail-Closed Gate</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-title">Active AI Agents</div>
+          <div className="kpi-number">11 / 11</div>
+          <div className="kpi-sub">3 Analytical Rooms</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-title">Pipeline Throughput</div>
+          <div className="kpi-number">{isHalted ? "0" : throughput.toLocaleString()}</div>
+          <div className="kpi-sub">Messages / Second</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-title">Execution Budget</div>
+          <div className="kpi-number" style={{ color: "var(--accent-blue)" }}>&lt; 500 &micro;s</div>
+          <div className="kpi-sub">Sub-ms Target SLA</div>
+        </div>
       </section>
 
-      {/* KPI Status Strip */}
-      <section className="kpi-row">
-        <div className="kpi-box">
-          <div className="kpi-label">EXECUTION STATE</div>
-          <div className="kpi-val" style={{ color: isHalted ? "var(--red)" : "var(--green)" }}>
-            {isHalted ? "HALTED" : "NOMINAL"}
-          </div>
-        </div>
-        <div className="kpi-box">
-          <div className="kpi-label">SUPER-MAJORITY GATE</div>
-          <div className="kpi-val" style={{ color: "var(--amber)" }}>&ge; 92.0% THRESHOLD</div>
-        </div>
-        <div className="kpi-box">
-          <div className="kpi-label">PIPELINE THROUGHPUT</div>
-          <div className="kpi-val">{isHalted ? "0" : throughput.toLocaleString()} MSG/SEC</div>
-        </div>
-        <div className="kpi-box">
-          <div className="kpi-label">KERNEL MEAN LATENCY</div>
-          <div className="kpi-val">{isHalted ? "—" : `${(meanLatency / 1000).toFixed(2)} ms`}</div>
-        </div>
-      </section>
-
-      {/* Main Terminal Split Grid */}
-      <div className="terminal-grid">
-        {/* LEFT PANE: 11-AGENT CONSENSUS MATRIX */}
-        <div className="terminal-pane">
-          <div className="pane-header">
-            <span className="pane-title">11-AGENT CONSENSUS MATRIX</span>
-            <span className="pane-subtitle">SUPER-MAJORITY: 11/11 BUY [CONFIRMED]</span>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>AGENT_ID</th>
-                  <th>ANALYTICAL_ROOM</th>
-                  <th>VOTE</th>
-                  <th className="align-right">SCORE</th>
-                  <th className="align-right">CONFIDENCE</th>
-                  <th className="align-right">LATENCY</th>
-                </tr>
-              </thead>
-              <tbody>
-                {AGENTS_LIST.map((a) => (
-                  <tr key={a.name}>
-                    <td style={{ fontWeight: 700, color: "#fff" }}>{a.name}</td>
-                    <td style={{ color: "var(--text-muted)" }}>{a.room}</td>
-                    <td>
-                      <span className={a.vote === "BUY" ? "tag-buy" : "tag-sell"}>{a.vote}</span>
-                    </td>
-                    <td className="align-right" style={{ fontWeight: 700 }}>
-                      {a.score.toFixed(1)}/10
-                    </td>
-                    <td className="align-right" style={{ color: "var(--green)" }}>
-                      {a.confidence.toFixed(1)}%
-                    </td>
-                    <td className="align-right" style={{ color: "var(--text-dim)" }}>
-                      {a.latencyMs} ms
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* RIGHT PANE: 5-STAGE PIPELINE & RISK CONTROLS */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {/* Sub-ms Execution Pipeline */}
-          <div className="terminal-pane">
-            <div className="pane-header">
-              <span className="pane-title">SUB-MS EXECUTION PIPELINE</span>
-              <span className="pane-subtitle">DETERMINISTIC STAGE PROFILING</span>
+      {/* 4. MAIN WORKSTATION: MULTI-AGENT LAYER & PIPELINE */}
+      <div className="workstation-layout">
+        {/* LEFT PANEL: 11-AGENT DECISION MATRIX */}
+        <div className="panel-card">
+          <div className="panel-header">
+            <div>
+              <div className="panel-heading">Multi-Agent Consensus Layer</div>
+              <div className="panel-subheading">11 specialized models evaluating live market state in parallel</div>
             </div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>STAGE</th>
-                    <th>SUBSYSTEM</th>
-                    <th className="align-right">LATENCY (&micro;s)</th>
-                    <th>CONSENSUS</th>
-                    <th className="align-right">STATUS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stages.map((s) => (
-                    <tr key={s.name}>
-                      <td style={{ fontWeight: 700 }}>{s.name}</td>
-                      <td style={{ color: "var(--text-muted)" }}>{s.subsystem}</td>
-                      <td className="align-right" style={{ color: "var(--amber)", fontWeight: 700 }}>
-                        {isHalted ? "—" : s.latencyUs.toLocaleString()}
-                      </td>
-                      <td style={{ color: "var(--cyan)" }}>{s.consensusGate}</td>
-                      <td className="align-right">
-                        <span className={isHalted ? "tag-halt" : "tag-ok"}>
-                          {isHalted ? "HALTED" : "OK"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <span className="mono" style={{ fontSize: "11px", color: "var(--accent-emerald)", fontWeight: 700 }}>
+              AGREEMENT: 94.2% [BUY]
+            </span>
           </div>
 
-          {/* Hardware Risk Controls */}
-          <div className="terminal-pane" style={{ padding: "0.85rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--amber)" }}>
-                DETERMINISTIC RISK GOVERNOR [HARDWARE_FLOOR]
+          <div className="agents-matrix">
+            {agents.map((agent) => (
+              <div key={agent.name} className="agent-item">
+                <div className="agent-top">
+                  <span className="agent-title">{agent.name}</span>
+                  <span className={`agent-pill ${agent.room.toLowerCase()}`}>
+                    {agent.room}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.4rem" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent-emerald)" }}>
+                    {agent.action} · {agent.confidence}% CONF
+                  </span>
+                  <span className="mono" style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    {agent.score.toFixed(1)}/10
+                  </span>
+                </div>
+                <div className="agent-stats">
+                  <span>Latency: {agent.latencyMs}ms</span>
+                  <span>Model: Specialized</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT PANEL: 5-STAGE PIPELINE & RISK CONTROLS */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          {/* Sub-ms Pipeline */}
+          <div className="panel-card">
+            <div className="panel-header">
+              <div>
+                <div className="panel-heading">Sub-Millisecond Execution Pipeline</div>
+                <div className="panel-subheading">Deterministic stage-by-stage profiling</div>
+              </div>
+              <span className="mono" style={{ fontSize: "11px", color: "var(--accent-blue)" }}>
+                IOC / FOK ENGINE
               </span>
-              <span style={{ color: "#fff", fontWeight: 700 }}>{riskCap.toFixed(1)}% OF CAPITAL</span>
+            </div>
+
+            <div className="pipeline-list">
+              {stages.map((stage) => (
+                <div key={stage.id} className="stage-row">
+                  <div>
+                    <div className="stage-name">{stage.name}</div>
+                    <div className="stage-tech">{stage.subsystem}</div>
+                  </div>
+                  <div className="stage-metrics">
+                    <div className="stage-latency">
+                      {isHalted ? "—" : `${stage.latencyUs.toLocaleString()} µs`}
+                    </div>
+                    <div className="stage-status" style={{ color: isHalted ? "var(--accent-rose)" : "var(--accent-emerald)" }}>
+                      {isHalted ? "HALTED" : stage.status}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Interactive Control Buttons */}
+            <div className="control-footer">
+              <button
+                className="btn-primary"
+                onClick={handleDispatchSignal}
+                disabled={isHalted}
+                style={{ opacity: isHalted ? 0.4 : 1 }}
+              >
+                Dispatch Test Execution Signal
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => setIsPaused(!isPaused)}
+              >
+                {isPaused ? "Resume Telemetry" : "Freeze Stream"}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={handleToggleHalt}
+                style={{
+                  color: isHalted ? "var(--accent-emerald)" : "var(--accent-rose)",
+                  borderColor: isHalted ? "var(--border-emerald)" : "rgba(244, 63, 94, 0.3)",
+                }}
+              >
+                {isHalted ? "Reset Circuit Breaker" : "Engage Emergency Halt"}
+              </button>
+            </div>
+          </div>
+
+          {/* Risk Governor Panel */}
+          <div className="panel-card" style={{ padding: "1.25rem 1.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+              <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Deterministic Risk Governor</span>
+              <span className="mono" style={{ color: "var(--accent-blue)", fontWeight: 700 }}>
+                {riskSlider.toFixed(1)}% Capital Allocation
+              </span>
             </div>
             <input
               type="range"
               min="0.1"
               max="5.0"
               step="0.1"
-              value={riskCap}
+              value={riskSlider}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
-                setRiskCap(val);
-                addLog("RISK", `Risk allocation adjusted to ${val.toFixed(1)}% equity per execution.`, "alert");
+                setRiskSlider(val);
+                pushLog("RISK", `Risk cap updated to ${val.toFixed(1)}% equity.`, "warn");
               }}
-              className="term-slider"
+              style={{ width: "100%", accentColor: "var(--accent-blue)", cursor: "pointer" }}
             />
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "0.5rem",
-                marginTop: "0.75rem",
-                fontSize: "11px",
-              }}
-            >
-              <div style={{ background: "#05080c", border: "1px solid var(--term-border)", padding: "0.5rem" }}>
-                <div style={{ color: "var(--text-muted)", fontSize: "10px" }}>DAILY DRAWDOWN CAP</div>
-                <div style={{ color: "var(--green)", fontWeight: 700, marginTop: "2px" }}>3.00% MAX</div>
-              </div>
-              <div style={{ background: "#05080c", border: "1px solid var(--term-border)", padding: "0.5rem" }}>
-                <div style={{ color: "var(--text-muted)", fontSize: "10px" }}>ORDER EXECUTION</div>
-                <div style={{ color: "var(--green)", fontWeight: 700, marginTop: "2px" }}>IOC / FOK DIRECT</div>
-              </div>
-              <div style={{ background: "#05080c", border: "1px solid var(--term-border)", padding: "0.5rem" }}>
-                <div style={{ color: "var(--text-muted)", fontSize: "10px" }}>SPREAD DEFENSE</div>
-                <div style={{ color: "var(--green)", fontWeight: 700, marginTop: "2px" }}>HALT &ge; 2.5 PIPS</div>
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-dim)", marginTop: "0.35rem" }}>
+              <span>0.1% (Low Exposure)</span>
+              <span>2.5% (Institutional Normal)</span>
+              <span>5.0% (Hard Max Floor)</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* BOTTOM PANE: REAL-TIME AUDIT LOG */}
-      <div className="console-pane">
-        <div style={{ fontSize: "10px", color: "var(--amber)", marginBottom: "0.35rem", fontWeight: 700, letterSpacing: "0.06em" }}>
-          SYS_AUDIT_STREAM [REAL-TIME EXECUTION LOG]
+      {/* 5. REAL-TIME AUDIT LOG */}
+      <div className="stream-console">
+        <div className="mono" style={{ fontSize: "10.5px", color: "var(--text-muted)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          SYS_AUDIT_STREAM // Real-Time Execution Log
         </div>
-        {logs.map((l) => (
-          <div key={l.id} className="console-line">
-            <span className="console-time">[{l.timestamp}]</span>
-            <span className="console-source">[{l.source}]</span>
-            <span className={`console-msg ${l.type}`}>{l.message}</span>
+        {logs.map((log) => (
+          <div key={log.id} className="log-line">
+            <span style={{ color: "var(--text-dim)", marginRight: "0.6rem" }}>[{log.timestamp}]</span>
+            <span style={{ color: "var(--accent-blue)", marginRight: "0.6rem" }}>[{log.subsystem}]</span>
+            <span
+              style={{
+                color:
+                  log.type === "success"
+                    ? "var(--accent-emerald)"
+                    : log.type === "warn"
+                    ? "var(--accent-amber)"
+                    : log.type === "error"
+                    ? "var(--accent-rose)"
+                    : "var(--text-main)",
+              }}
+            >
+              {log.message}
+            </span>
           </div>
         ))}
         <div ref={consoleEndRef} />
       </div>
+
+      {/* 6. RECRUITER PROJECT OVERVIEW & ARCHITECTURE BRIEF */}
+      <section style={{ marginTop: "2rem", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "1.75rem 2rem" }}>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0 0 0.5rem" }}>Engineering Architecture & System Invariants</h2>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: "0 0 1.25rem", maxWidth: "900px" }}>
+          Sovereign Cockpit is the operator telemetry layer for a hybrid quantitative trading system. It fuses a distributed 11-agent AI consensus swarm with a deterministic sub-millisecond execution kernel.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "1.1rem 1.25rem" }}>
+            <div style={{ fontWeight: 600, color: "var(--accent-blue)", marginBottom: "0.35rem" }}>1. Multi-Agent Consensus Swarm</div>
+            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+              Evaluates market data across Sentiment, Strategy, and Math rooms concurrently via AsyncIO. Enforces a strict 92% weighted consensus gate before authorizing any downstream execution signal.
+            </div>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "1.1rem 1.25rem" }}>
+            <div style={{ fontWeight: 600, color: "var(--accent-emerald)", marginBottom: "0.35rem" }}>2. Deterministic Risk Kernel</div>
+            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+              Hardware-floor constraints written with SIMD variance checks and strict capital defense. Features a hard 3% daily drawdown kill-switch with zero override capability.
+            </div>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "1.1rem 1.25rem" }}>
+            <div style={{ fontWeight: 600, color: "var(--accent-amber)", marginBottom: "0.35rem" }}>3. Production Rigor & Testing</div>
+            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+              Core execution layers are backed by 240+ automated unit, integration, and chaos tests with a 100% green pass rate, covering HMAC webhook verification and race condition defenses.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. FOOTER */}
+      <footer className="recruiter-footer">
+        <div>
+          <strong>Usman Abayomi Bamidele</strong> · Portfolio Showcase Edition
+        </div>
+        <div>
+          Next.js 14 · React 18 · TypeScript Strict · Tailwind-Style Utilities
+        </div>
+      </footer>
     </div>
   );
 }
