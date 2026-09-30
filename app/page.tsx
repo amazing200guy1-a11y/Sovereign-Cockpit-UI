@@ -40,7 +40,7 @@ const BARS = [
 ];
 
 export default function SovereignCockpit() {
-  const [activeNav, setActiveNav] = useState("Dashboard");
+  const [activeNav, setActiveNav] = useState("Agents");
   const [activeStage, setActiveStage] = useState("Agents");
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -96,7 +96,7 @@ export default function SovereignCockpit() {
             <div className="sb-avatar">UB</div>
             <div className="sb-user-meta">
               <span className="sb-user-name">Usman Bamidele</span>
-              <span className="sb-user-id">ID: 942-X01</span>
+              <span className="sb-user-role">AI &amp; Backend Engineer</span>
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function SovereignCockpit() {
           <div className="top-status-group">
             <div className={`pipeline-live-pill ${isHalted ? "halted" : ""}`}>
               <span className="live-dot" />
-              <span>{isHalted ? "Pipeline Halted" : "Pipeline live"}</span>
+              <span>{isHalted ? "Simulation paused" : "Demo pipeline active"}</span>
             </div>
             <button
               className={`btn-recalibrate ${isDispatching ? "pulsing" : ""}`}
@@ -199,18 +199,19 @@ export default function SovereignCockpit() {
         {/* Hero Section */}
         <section className="hero-grid">
           <div className="hero-left">
-            <span className="hero-eyebrow">Kinetic Monolith Architecture</span>
-            <span className="hero-sublabel">Aggregate net alpha / Consensus</span>
+            <span className="hero-eyebrow">Agent Consensus Dashboard · Demo Mode</span>
+            <span className="hero-sublabel">11-agent supermajority agreement score (≥ 92.0% required to release execution)</span>
             <div className="hero-main-stat">
               <span className="hero-number mono">{consensus.toFixed(2)}%</span>
-              <span className="hero-pnl-pill">Daily PnL +12.4%</span>
+              <span className="hero-pnl-pill">11 / 11 agents aligned</span>
             </div>
           </div>
 
           <div className="hero-right-metrics">
             <div className="mini-metric-card">
               <div className="mm-head">
-                <span className="mm-label">Kelly criterion</span>
+                <span className="mm-label">Kelly Criterion</span>
+                <span className="mm-tooltip">Optimal position sizing fraction (risk-adjusted)</span>
                 <span className="mm-val mono">0.145</span>
               </div>
               <svg viewBox="0 0 100 28" className="spark-svg">
@@ -220,7 +221,8 @@ export default function SovereignCockpit() {
 
             <div className="mini-metric-card">
               <div className="mm-head">
-                <span className="mm-label">Active exposure</span>
+                <span className="mm-label">Notional Exposure</span>
+                <span className="mm-tooltip">Total open position value across all venues (simulated)</span>
                 <span className="mm-val mono">$4.2M</span>
               </div>
               <div className="mini-bars">
@@ -234,7 +236,8 @@ export default function SovereignCockpit() {
 
             <div className="mini-metric-card">
               <div className="mm-head">
-                <span className="mm-label">Risk parity</span>
+                <span className="mm-label">Portfolio Risk Parity</span>
+                <span className="mm-tooltip">Equal risk allocation across Forex, Commodities, Indices</span>
                 <span className="mm-val">Balanced</span>
               </div>
               <svg viewBox="0 0 100 28" className="spark-svg">
@@ -250,20 +253,26 @@ export default function SovereignCockpit() {
           <div className="chart-panel">
             <div className="chart-head">
               <div>
-                <span className="cp-sub">Total Revenue</span>
+                <span className="cp-sub">Pipeline Throughput — Sep 23–29, 2025 · msgs / sec (simulated replay)</span>
                 <div className="cp-num-row">
-                  <span className="cp-num mono">${revenue.toLocaleString()}.00</span>
-                  <span className="cp-badge">+10.32% From last period</span>
+                  <span className="cp-num mono">{revenue.toLocaleString()}</span>
+                  <span className="cp-badge">+10.32% vs prior 7-day window</span>
                 </div>
               </div>
-              <button className="btn-balance-pill mono">
-                <span>&#128274;</span> Balance: 4.6K
-              </button>
+              <span className="btn-balance-pill mono">Peak day: Thu Sep 26</span>
             </div>
 
             {/* 3D Cylinders */}
             <div className="cylinder-stage">
-              {BARS.map((b) => (
+              {[
+                { day: "Mon Sep 23", val: 40, h: "40%" },
+                { day: "Tue Sep 24", val: 60, h: "60%" },
+                { day: "Wed Sep 25", val: 24, h: "24%" },
+                { day: "Thu Sep 26", val: 70, h: "70%", active: true },
+                { day: "Fri Sep 27", val: 20, h: "20%" },
+                { day: "Sat Sep 28", val: 35, h: "35%" },
+                { day: "Sun Sep 29", val: 50, h: "50%" },
+              ].map((b) => (
                 <div key={b.day} className={`cylinder-col ${b.active ? "glow-cylinder" : ""}`}>
                   <span className="cyl-val mono">{b.val}</span>
                   <div className="cylinder-track">
@@ -287,11 +296,11 @@ export default function SovereignCockpit() {
               </div>
               <div className="rp-stats mono">
                 <div className="rp-stat-row">
-                  <span>VAR (95%)</span>
+                  <span>VaR (95%, 1-day)</span>
                   <strong className="coral">-2.4%</strong>
                 </div>
                 <div className="rp-stat-row">
-                  <span>Sharperatio</span>
+                  <span>Sharpe Ratio</span>
                   <strong className="cyan">{sharpe.toFixed(2)}</strong>
                 </div>
                 <div className="rp-stat-row">
@@ -353,28 +362,58 @@ export default function SovereignCockpit() {
         </section>
       </main>
 
-      {/* ── PROJECT OVERVIEW MODAL ── */}
+      {/* ── PROJECT OVERVIEW MODAL (Recruiter Entry Point) ── */}
       {showModal && (
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
-              <h2>Sovereign Cockpit Architecture</h2>
+              <div>
+                <h2>Sovereign Cockpit</h2>
+                <p className="modal-subtitle">Operator telemetry interface for a distributed multi-agent quantitative trading system</p>
+              </div>
               <button className="modal-x" onClick={() => setShowModal(false)}>&times;</button>
             </div>
+
             <div className="modal-body">
-              <p>
-                <strong>Sovereign Cockpit</strong> was designed by <strong>Usman Abayomi Bamidele</strong> as the operator telemetry interface for a distributed 11-agent consensus trading system.
-              </p>
-              <h3>Core System Invariants</h3>
-              <ul>
-                <li><strong>11-Agent Weighted Consensus:</strong> AsyncIO task pools distribute evaluations across Sentiment, Strategy, and Math rooms with a strict &ge; 92.0% consensus execution threshold.</li>
-                <li><strong>Sub-Millisecond Risk Kernel:</strong> Hardware-enforced SIMD bounds with a 3.00% daily drawdown circuit breaker.</li>
-                <li><strong>Production Verification:</strong> Backed by 240+ automated green tests verifying HMAC webhook security and concurrency race defenses.</li>
-                <li><strong>Stealth Context:</strong> Live broker execution bridges operate under stealth NDA for commercial release.</li>
-              </ul>
+              <div className="modal-section">
+                <h3>Who Built This</h3>
+                <p>
+                  <strong>Usman Abayomi Bamidele</strong> — AI &amp; Backend Systems Engineer based in Ibadan, Nigeria.
+                  This project showcases system design, async orchestration, risk engine architecture, and frontend integration.
+                </p>
+              </div>
+
+              <div className="modal-section">
+                <h3>What This Is</h3>
+                <p>
+                  A portfolio demonstration of a quantitative execution system architecture. The dashboard visualizes how 11 specialized AI agents evaluate market data in parallel and how a deterministic risk kernel enforces capital safety constraints. All figures on screen are simulated replays — the live broker execution bridges operate under a stealth NDA.
+                </p>
+              </div>
+
+              <div className="modal-section">
+                <h3>Technology Stack</h3>
+                <div className="modal-stack-grid">
+                  <div className="stack-item"><span className="stack-layer">UI</span><span>Next.js 14 · React 18 · TypeScript · CSS</span></div>
+                  <div className="stack-item"><span className="stack-layer">Orchestration</span><span>Python 3.11 · FastAPI · AsyncIO · OpenRouter</span></div>
+                  <div className="stack-item"><span className="stack-layer">Risk Engine</span><span>C++20 SIMD · Kelly Criterion · VaR(95%) Bounds</span></div>
+                  <div className="stack-item"><span className="stack-layer">Infrastructure</span><span>Redis Pub/Sub · FIX 4.4 · Kafka · HMAC Auth</span></div>
+                  <div className="stack-item"><span className="stack-layer">Testing</span><span>pytest-asyncio · 240+ green tests · CI/CD</span></div>
+                </div>
+              </div>
+
+              <div className="modal-section">
+                <h3>Key Engineering Features</h3>
+                <ul>
+                  <li><strong>11-Agent Supermajority Gate:</strong> AsyncIO task pools dispatch concurrent LLM evaluations across Sentiment, Strategy, and Math rooms. Execution requires ≥ 92.0% weighted consensus — purely deterministic, no probabilistic sampling.</li>
+                  <li><strong>Sub-Millisecond Risk Kernel:</strong> SIMD-accelerated capital defense with a hard 3.00% daily drawdown circuit breaker and zero override tolerance.</li>
+                  <li><strong>Interactive Demo Signal:</strong> Click "Dispatch Demo Signal" above to watch a live tick propagate through all 5 pipeline stages in real time.</li>
+                </ul>
+              </div>
+
               <div className="modal-foot">
-                <a href="https://github.com/amazing200guy1-a11y/Sovereign-Cockpit-UI" target="_blank" rel="noreferrer" className="btn-modal-gh">GitHub Repository</a>
-                <button className="btn-modal-close" onClick={() => setShowModal(false)}>Close Overview</button>
+                <a href="https://github.com/amazing200guy1-a11y/Sovereign-Cockpit-UI" target="_blank" rel="noreferrer" className="btn-modal-gh">GitHub Repo</a>
+                <a href="https://linkedin.com/in/usman-bamidele" target="_blank" rel="noreferrer" className="btn-modal-gh">LinkedIn</a>
+                <a href="mailto:usmanbamidele200@gmail.com" className="btn-modal-hire">Contact Usman</a>
               </div>
             </div>
           </div>
