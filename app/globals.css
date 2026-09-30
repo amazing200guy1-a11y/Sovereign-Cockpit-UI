@@ -1,23 +1,29 @@
-/* Sovereign-Cockpit-UI — Global Styles
-   Modern CSS variables, smooth transitions, dense institutional aesthetic.
-*/
+/* ==========================================================================
+   SOVEREIGN TERMINAL — BLOOMBERG AUSTERE INSTITUTIONAL SPECIFICATION
+   Zero emojis. Zero soft pastels. Zero rounded bubble pills.
+   High-density monospace execution grid.
+   ========================================================================== */
 
 :root {
-  --bg: #070b14;
-  --panel: #0f172a;
-  --border: #1e293b;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --accent: #38bdf8;
-  --approved: #34d399;
-  --active: #60a5fa;
-  --halted: #f87171;
-  --idle: #64748b;
-  --high: #34d399;
-  --mid: #fbbf24;
-  --low: #f87171;
-  --radius: 12px;
-  --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --term-bg: #030508;
+  --term-surface: #0a0e14;
+  --term-surface-raised: #101620;
+  --term-border: #1a2230;
+  --term-border-bright: #2d384d;
+  
+  /* Bloomberg Palette */
+  --amber: #ff9e00;
+  --amber-dim: #995f00;
+  --green: #00e676;
+  --green-dim: #004d26;
+  --red: #ff1744;
+  --red-dim: #4d0714;
+  --cyan: #00e5ff;
+  --silver: #e2e8f0;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+  
+  --font-mono: 'Consolas', 'JetBrains Mono', 'SF Mono', Menlo, Monaco, monospace;
 }
 
 *,
@@ -30,244 +36,324 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  line-height: 1.5;
+  background-color: var(--term-bg);
+  color: var(--silver);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
-/* ---------- Shell ---------- */
+/* ---------- Terminal Shell ---------- */
 
-.cockpit-root {
+.terminal-viewport {
   min-height: 100vh;
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 2.5rem 1.5rem 3.5rem;
-}
-
-.cockpit-header {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  padding: 0.75rem 1rem 1.5rem;
+  max-width: 100%;
+}
+
+/* Top Command Bar */
+.top-command-bar {
+  display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border);
+  align-items: center;
+  background: var(--term-surface);
+  border: 1px solid var(--term-border);
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0.75rem;
+  font-size: 12px;
 }
 
-.cockpit-header h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #ffffff;
-}
-
-.subtitle {
-  margin: 0.4rem 0 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.header-meta {
+.terminal-brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--approved);
-  background: rgba(52, 211, 153, 0.1);
-  padding: 0.35rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  gap: 0.75rem;
 }
 
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--approved);
-  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
-  animation: pulse-live 1.8s ease-out infinite;
-}
-
-@keyframes pulse-live {
-  0% {
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(52, 211, 153, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
-  }
-}
-
-/* ---------- Stat Cards Bar ---------- */
-
-.metric-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.metric-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.15rem 1.25rem;
-}
-
-.metric-label {
-  font-size: 0.75rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.4rem;
-}
-
-.metric-val {
-  font-size: 1.5rem;
+.terminal-title {
+  color: var(--amber);
   font-weight: 700;
-  color: #ffffff;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-/* ---------- Grid panel ---------- */
-
-.grid-panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+.terminal-badge {
+  color: var(--text-muted);
+  border-left: 1px solid var(--term-border);
+  padding-left: 0.75rem;
 }
 
-.table-wrapper {
-  overflow-x: auto;
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
-.telemetry-grid {
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.status-dot.halted {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+}
+
+/* Action Strip / Function Keys */
+.fkey-strip {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.fkey-btn {
+  background: var(--term-surface);
+  color: var(--silver);
+  border: 1px solid var(--term-border);
+  padding: 0.4rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.1s ease;
+}
+
+.fkey-btn:hover {
+  background: var(--term-border);
+  color: #fff;
+  border-color: var(--term-border-bright);
+}
+
+.fkey-btn.amber {
+  border-color: var(--amber-dim);
+  color: var(--amber);
+}
+
+.fkey-btn.amber:hover {
+  background: var(--amber);
+  color: #000;
+}
+
+.fkey-btn.red {
+  border-color: var(--red-dim);
+  color: var(--red);
+}
+
+.fkey-btn.red:hover {
+  background: var(--red);
+  color: #fff;
+}
+
+.fkey-tag {
+  color: var(--amber);
+  margin-right: 0.35rem;
+  font-weight: 700;
+}
+
+/* ---------- Terminal Multi-Pane Grid ---------- */
+
+.terminal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+@media (max-width: 1024px) {
+  .terminal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.terminal-pane {
+  background: var(--term-surface);
+  border: 1px solid var(--term-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-header {
+  background: #020406;
+  border-bottom: 1px solid var(--term-border);
+  padding: 0.45rem 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pane-title {
+  color: var(--amber);
+}
+
+.pane-subtitle {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* ---------- Dense Terminal Data Tables ---------- */
+
+.data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 11.5px;
 }
 
-.telemetry-grid thead {
-  background: #020617;
-  color: var(--muted);
+.data-table th {
+  background: #06090f;
+  color: var(--text-muted);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 0.72rem;
-}
-
-.telemetry-grid th,
-.telemetry-grid td {
-  padding: 1rem 1.25rem;
+  letter-spacing: 0.05em;
+  padding: 0.45rem 0.65rem;
   text-align: left;
+  border-bottom: 1px solid var(--term-border);
 }
 
-.telemetry-grid tbody tr {
-  border-top: 1px solid var(--border);
-  transition: background 0.18s ease;
+.data-table td {
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid #101620;
+  white-space: nowrap;
 }
 
-.telemetry-grid tbody tr:hover {
-  background: rgba(56, 189, 248, 0.04);
+.data-table tr:hover {
+  background: rgba(255, 158, 0, 0.04);
 }
 
-.stage-cell {
-  font-weight: 600;
-  color: var(--text);
-}
-
-.numeric {
-  font-variant-numeric: tabular-nums;
+.align-right {
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.time-cell {
-  color: var(--muted);
-  font-size: 0.8rem;
+/* Status Indicators */
+.tag-buy {
+  color: var(--green);
+  font-weight: 700;
 }
 
-/* ---------- Pills ---------- */
+.tag-sell {
+  color: var(--red);
+  font-weight: 700;
+}
 
-.consensus-pill,
-.state-pill {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
+.tag-ok {
+  color: var(--green);
   font-weight: 600;
-  letter-spacing: 0.03em;
+}
+
+.tag-halt {
+  color: var(--red);
+  font-weight: 700;
+  background: rgba(255, 23, 68, 0.15);
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--red-dim);
+}
+
+.tag-active {
+  color: var(--cyan);
+}
+
+/* ---------- Telemetry Summary KPI Row ---------- */
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.kpi-box {
+  background: var(--term-surface);
+  border: 1px solid var(--term-border);
+  padding: 0.6rem 0.75rem;
+}
+
+.kpi-label {
+  font-size: 10px;
+  color: var(--text-muted);
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.consensus-high {
-  background: rgba(52, 211, 153, 0.15);
-  color: var(--high);
-  border: 1px solid rgba(52, 211, 153, 0.25);
+.kpi-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.consensus-mid {
-  background: rgba(251, 191, 36, 0.15);
-  color: var(--mid);
-  border: 1px solid rgba(251, 191, 36, 0.25);
+/* ---------- Log Console ---------- */
+
+.console-pane {
+  background: #020305;
+  border: 1px solid var(--term-border);
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 11px;
+  min-height: 110px;
+  max-height: 140px;
+  overflow-y: auto;
 }
 
-.consensus-low {
-  background: rgba(248, 113, 113, 0.15);
-  color: var(--low);
-  border: 1px solid rgba(248, 113, 113, 0.25);
+.console-line {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
 }
 
-.state-approved {
-  background: rgba(52, 211, 153, 0.15);
-  color: var(--approved);
-  border: 1px solid rgba(52, 211, 153, 0.25);
+.console-time {
+  color: var(--text-dim);
+  margin-right: 0.5rem;
 }
 
-.state-active {
-  background: rgba(96, 165, 250, 0.15);
-  color: var(--active);
-  border: 1px solid rgba(96, 165, 250, 0.25);
+.console-source {
+  color: var(--cyan);
+  margin-right: 0.5rem;
 }
 
-.state-halted {
-  background: rgba(248, 113, 113, 0.18);
-  color: var(--halted);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  animation: soft-pulse 1.6s ease-in-out infinite;
+.console-msg {
+  color: var(--silver);
 }
 
-.state-idle {
-  background: rgba(100, 116, 139, 0.2);
-  color: var(--idle);
+.console-msg.success {
+  color: var(--green);
 }
 
-@keyframes soft-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.65;
-  }
+.console-msg.alert {
+  color: var(--amber);
 }
 
-/* ---------- Footer ---------- */
+.console-msg.error {
+  color: var(--red);
+}
 
-.cockpit-footer {
-  margin-top: 2.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-  color: var(--muted);
-  border-top: 1px solid var(--border);
-  padding-top: 1.25rem;
+/* ---------- Sliders and Controls ---------- */
+
+.term-slider {
+  width: 100%;
+  accent-color: var(--amber);
+  background: #000;
+  cursor: pointer;
 }

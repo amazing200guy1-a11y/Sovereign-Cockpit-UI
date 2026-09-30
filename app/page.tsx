@@ -1,403 +1,337 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
-interface TelemetryRow {
-  id: string;
-  stage: string;
-  latencyMs: number;
-  consensus: number;
-  state: "idle" | "active" | "halted" | "approved";
-  updatedAt: number;
-  description: string;
+interface TelemetryStage {
+  name: string;
+  subsystem: string;
+  latencyUs: number;
+  status: "OK" | "ACTIVE" | "HALTED";
+  consensusGate: string;
 }
 
-interface AgentVote {
+interface AgentMatrixRow {
   name: string;
-  room: "Sentiment" | "Strategy" | "Math";
+  room: "SENTIMENT" | "STRATEGY" | "MATH";
+  vote: "BUY" | "SELL" | "HOLD";
   score: number;
   confidence: number;
-  action: "BUY" | "SELL" | "HOLD";
   latencyMs: number;
 }
 
-const AGENTS: AgentVote[] = [
-  { name: "The Don", room: "Sentiment", score: 9, confidence: 94, action: "BUY", latencyMs: 142 },
-  { name: "Phantom", room: "Sentiment", score: 8, confidence: 89, action: "BUY", latencyMs: 165 },
-  { name: "Oracle", room: "Sentiment", score: 9, confidence: 92, action: "BUY", latencyMs: 180 },
-  { name: "Caesar", room: "Strategy", score: 10, confidence: 96, action: "BUY", latencyMs: 110 },
-  { name: "Sage", room: "Strategy", score: 9, confidence: 91, action: "BUY", latencyMs: 125 },
-  { name: "Guardian", room: "Strategy", score: 8, confidence: 88, action: "BUY", latencyMs: 140 },
-  { name: "Vanguard", room: "Strategy", score: 9, confidence: 93, action: "BUY", latencyMs: 115 },
-  { name: "Titan", room: "Math", score: 9, confidence: 95, action: "BUY", latencyMs: 85 },
-  { name: "Atlas", room: "Math", score: 9, confidence: 90, action: "BUY", latencyMs: 92 },
-  { name: "Forge", room: "Math", score: 8, confidence: 87, action: "BUY", latencyMs: 78 },
-  { name: "Sentinel", room: "Math", score: 10, confidence: 98, action: "BUY", latencyMs: 82 },
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  source: string;
+  message: string;
+  type: "info" | "success" | "alert" | "error";
+}
+
+const AGENTS_LIST: AgentMatrixRow[] = [
+  { name: "THE DON", room: "SENTIMENT", vote: "BUY", score: 9.2, confidence: 94.1, latencyMs: 142 },
+  { name: "PHANTOM", room: "SENTIMENT", vote: "BUY", score: 8.8, confidence: 89.4, latencyMs: 165 },
+  { name: "ORACLE", room: "SENTIMENT", vote: "BUY", score: 9.1, confidence: 92.0, latencyMs: 180 },
+  { name: "CAESAR", room: "STRATEGY", vote: "BUY", score: 9.8, confidence: 96.5, latencyMs: 110 },
+  { name: "SAGE", room: "STRATEGY", vote: "BUY", score: 8.9, confidence: 91.2, latencyMs: 125 },
+  { name: "GUARDIAN", room: "STRATEGY", vote: "BUY", score: 8.7, confidence: 88.0, latencyMs: 140 },
+  { name: "VANGUARD", room: "STRATEGY", vote: "BUY", score: 9.4, confidence: 93.8, latencyMs: 115 },
+  { name: "TITAN", room: "MATH", vote: "BUY", score: 9.5, confidence: 95.0, latencyMs: 85 },
+  { name: "ATLAS", room: "MATH", vote: "BUY", score: 9.0, confidence: 90.5, latencyMs: 92 },
+  { name: "FORGE", room: "MATH", vote: "BUY", score: 8.6, confidence: 87.2, latencyMs: 78 },
+  { name: "SENTINEL", room: "MATH", vote: "BUY", score: 9.9, confidence: 98.4, latencyMs: 82 },
 ];
 
-const STAGES = [
-  { name: "Signal Ingest", desc: "Tick feed validation and multi-source time synchronization" },
-  { name: "Oracle Verification", desc: "Tukey IQR outlier detection across independent liquidity nodes" },
-  { name: "Agent Consensus Swarm", desc: "11-agent parallel inference across Sentiment, Strategy, and Math" },
-  { name: "Deterministic Risk Governor", desc: "SIMD variance check and drawdown circuit breaker verification" },
-  { name: "FIX Execution Bridge", desc: "Sub-millisecond IOC order serialization to liquidity venues" },
-];
-
-export default function SovereignCockpitPage() {
-  const [activeTab, setActiveTab] = useState<"pipeline" | "agents" | "governor">("pipeline");
-  const [rows, setRows] = useState<TelemetryRow[]>([]);
+export default function SovereignTerminalPage() {
+  const [isHalted, setIsHalted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [emergencyHalt, setEmergencyHalt] = useState(false);
-  const [activeSignal, setActiveSignal] = useState<string | null>(null);
-  const [riskSlider, setRiskSlider] = useState(1.0);
-  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [riskCap, setRiskCap] = useState(1.0);
+  const [meanLatency, setMeanLatency] = useState(412); // microseconds
+  const [throughput, setThroughput] = useState(1840);
+  const [stages, setStages] = useState<TelemetryStage[]>([
+    { name: "SIGNAL_INGEST", subsystem: "Kafka / Arrow", latencyUs: 84, status: "OK", consensusGate: "100.0%" },
+    { name: "ORACLE_VERIFY", subsystem: "Tukey IQR / Hampel", latencyUs: 142, status: "OK", consensusGate: "98.4%" },
+    { name: "SWARM_CONSENSUS", subsystem: "11-Agent Mesh", latencyUs: 4350, status: "OK", consensusGate: "94.2%" },
+    { name: "RISK_GOVERNOR", subsystem: "SIMD C++ Kernel", latencyUs: 18, status: "OK", consensusGate: "ACTIVE" },
+    { name: "FIX_DISPATCH", subsystem: "QuickFIX/J 4.4", latencyUs: 184, status: "OK", consensusGate: "IOC_READY" },
+  ]);
 
-  // Streaming latency ticks
+  const [logs, setLogs] = useState<LogEntry[]>([
+    { id: "1", timestamp: "22:31:02.104", source: "KERNEL", message: "Deterministic execution state machine initialized.", type: "info" },
+    { id: "2", timestamp: "22:31:02.842", source: "SWARM", message: "11/11 agents synchronized across Sentiment, Strategy, and Math.", type: "info" },
+    { id: "3", timestamp: "22:31:03.418", source: "ORACLE", message: "Cross-venue tick variance within 0.04% boundary [OK].", type: "success" },
+    { id: "4", timestamp: "22:31:04.012", source: "RISK", message: "Drawdown budget confirmed: 0.00% daily / 3.00% max cap.", type: "info" },
+  ]);
+
+  const consoleEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll logs
   useEffect(() => {
-    if (isPaused || emergencyHalt) return;
+    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
 
-    const tick = () => {
-      const now = Date.now();
-      const baseLatencies = [1.12, 0.74, 4.35, 0.42, 2.85];
+  // Streaming latency jitter
+  useEffect(() => {
+    if (isPaused || isHalted) return;
 
-      const nextRows: TelemetryRow[] = STAGES.map((s, idx) => {
-        const jitter = Math.random() * 0.85;
-        const latencyMs = Number((baseLatencies[idx] + jitter).toFixed(2));
-        const consensus = Math.min(100, Math.floor(91 + Math.random() * 9));
+    const interval = setInterval(() => {
+      setStages((prev) =>
+        prev.map((s, idx) => {
+          const jitter = Math.floor(Math.random() * 12 - 6);
+          const base = [85, 140, 4200, 18, 180][idx];
+          return {
+            ...s,
+            latencyUs: Math.max(12, base + jitter),
+            status: isHalted ? "HALTED" : "OK",
+          };
+        })
+      );
 
-        return {
-          id: `stage-${idx}`,
-          stage: s.name,
-          description: s.desc,
-          latencyMs,
-          consensus,
-          state: emergencyHalt ? "halted" : consensus >= 92 ? "approved" : "active",
-          updatedAt: now,
-        };
-      });
-
-      setRows(nextRows);
-    };
-
-    tick();
-    const id = setInterval(tick, 1400);
-    return () => clearInterval(id);
-  }, [isPaused, emergencyHalt]);
-
-  const handleSimulateSignal = () => {
-    if (emergencyHalt) return;
-    setActiveSignal("Processing EUR/USD 1.0850 Long Confluence...");
-    setTimeout(() => {
-      setActiveSignal("Consensus Verified (94.2% agreement) — Order Authorized.");
-      setTimeout(() => setActiveSignal(null), 3000);
+      setThroughput((prev) => Math.floor(prev + (Math.random() * 40 - 20)));
+      setMeanLatency((prev) => Math.max(380, Math.floor(prev + (Math.random() * 8 - 4))));
     }, 1200);
+
+    return () => clearInterval(interval);
+  }, [isPaused, isHalted]);
+
+  const addLog = (source: string, message: string, type: LogEntry["type"]) => {
+    const now = new Date();
+    const ts = `${now.toTimeString().split(" ")[0]}.${String(now.getMilliseconds()).padStart(3, "0")}`;
+    setLogs((prev) => [...prev.slice(-40), { id: String(Date.now()), timestamp: ts, source, message, type }]);
+  };
+
+  const handleDispatchSignal = () => {
+    if (isHalted) {
+      addLog("CIRCUIT", "DISPATCH REJECTED: Hard emergency halt active on execution bridge.", "error");
+      return;
+    }
+
+    addLog("INGEST", "INCOMING MARKET EVENT: EURUSD 1.08502 (Spread: 0.8 pips)", "info");
+    setTimeout(() => {
+      addLog("SWARM", "PARALLEL EVALUATION: 11 agents reporting 94.2% BUY consensus.", "success");
+    }, 350);
+
+    setTimeout(() => {
+      addLog("RISK", `PARAM CHECK: Risk allocated ${riskCap.toFixed(1)}% | Invariants verified [PASS]`, "success");
+    }, 600);
+
+    setTimeout(() => {
+      addLog("FIX_4.4", "IOC ORDER ROUTED TO VENUE: CLORDID-884210 [STATUS: FILLED]", "success");
+    }, 850);
+  };
+
+  const handleToggleHalt = () => {
+    if (isHalted) {
+      setIsHalted(false);
+      addLog("CIRCUIT", "CIRCUIT BREAKER RESET: Resuming normal execution state.", "success");
+    } else {
+      setIsHalted(true);
+      addLog("CIRCUIT", "CRITICAL OVERRIDE: Emergency halt engaged. All outbound orders blocked.", "error");
+    }
   };
 
   return (
-    <main className="cockpit-root">
-      {/* Top Header */}
-      <header className="cockpit-header">
-        <div>
-          <h1>Sovereign Cockpit</h1>
-          <p className="subtitle">
-            Interactive Institutional Execution Terminal · 11-Agent AI Swarm · Sub-ms Risk Engine
-          </p>
+    <div className="terminal-viewport">
+      {/* Top Bloomberg Command Bar */}
+      <header className="top-command-bar">
+        <div className="terminal-brand">
+          <span className="terminal-title">SOVEREIGN TERMINAL [OPERATOR_STATION]</span>
+          <span className="terminal-badge">VENUE: DIRECT FIX 4.4</span>
+          <span className="terminal-badge">REGIME: SUB-MS EXECUTION</span>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          {emergencyHalt ? (
-            <div className="header-meta" style={{ color: "var(--halted)", background: "rgba(248,113,113,0.15)", borderColor: "rgba(248,113,113,0.3)" }}>
-              <span className="live-dot" style={{ background: "var(--halted)" }} />
-              <span>CIRCUIT BREAKER: HALTED</span>
-            </div>
-          ) : (
-            <div className="header-meta">
-              <span className="live-dot" />
-              <span>TELEMETRY: {isPaused ? "PAUSED" : "LIVE"}</span>
-            </div>
-          )}
+        <div className="system-status">
+          <span className={`status-dot ${isHalted ? "halted" : ""}`} />
+          <span style={{ color: isHalted ? "var(--red)" : "var(--green)" }}>
+            {isHalted ? "SYSTEM HALTED [CIRCUIT_OPEN]" : "ENGINE ONLINE [SYSTEM_NOMINAL]"}
+          </span>
         </div>
       </header>
 
-      {/* Interactive Controls Bar */}
-      <section style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1.5rem", alignItems: "center", justifyContent: "space-between" }}>
-        {/* Navigation Tabs */}
-        <div style={{ display: "flex", gap: "0.4rem", background: "var(--panel)", padding: "0.3rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setActiveTab("pipeline")}
-            style={{
-              background: activeTab === "pipeline" ? "var(--border)" : "transparent",
-              color: activeTab === "pipeline" ? "#fff" : "var(--muted)",
-              border: "none",
-              padding: "0.45rem 1rem",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-            }}
-          >
-            ⚡ Pipeline Grid
-          </button>
-          <button
-            onClick={() => setActiveTab("agents")}
-            style={{
-              background: activeTab === "agents" ? "var(--border)" : "transparent",
-              color: activeTab === "agents" ? "#fff" : "var(--muted)",
-              border: "none",
-              padding: "0.45rem 1rem",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-            }}
-          >
-            🧠 11-Agent Voting Room
-          </button>
-          <button
-            onClick={() => setActiveTab("governor")}
-            style={{
-              background: activeTab === "governor" ? "var(--border)" : "transparent",
-              color: activeTab === "governor" ? "#fff" : "var(--muted)",
-              border: "none",
-              padding: "0.45rem 1rem",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-            }}
-          >
-            🛡️ Risk Governor
-          </button>
+      {/* Function Keys Command Bar */}
+      <section className="fkey-strip">
+        <button className="fkey-btn amber" onClick={handleDispatchSignal}>
+          <span className="fkey-tag">[F1]</span>DISPATCH TEST SIGNAL
+        </button>
+        <button className="fkey-btn" onClick={() => setIsPaused(!isPaused)}>
+          <span className="fkey-tag">[F2]</span>{isPaused ? "RESUME STREAM" : "FREEZE TELEMETRY"}
+        </button>
+        <button className={`fkey-btn ${isHalted ? "amber" : "red"}`} onClick={handleToggleHalt}>
+          <span className="fkey-tag">[F5]</span>{isHalted ? "RESET CIRCUIT BREAKER" : "EMERGENCY HALT"}
+        </button>
+        <button
+          className="fkey-btn"
+          onClick={() => addLog("DIAGNOSTIC", "Memory cache flushed. Lock-free queues operating at 0% saturation.", "info")}
+        >
+          <span className="fkey-tag">[F9]</span>RUN DIAGNOSTIC
+        </button>
+      </section>
+
+      {/* KPI Status Strip */}
+      <section className="kpi-row">
+        <div className="kpi-box">
+          <div className="kpi-label">EXECUTION STATE</div>
+          <div className="kpi-val" style={{ color: isHalted ? "var(--red)" : "var(--green)" }}>
+            {isHalted ? "HALTED" : "NOMINAL"}
+          </div>
         </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          <button
-            onClick={handleSimulateSignal}
-            disabled={emergencyHalt}
-            style={{
-              background: "#38bdf8",
-              color: "#030712",
-              border: "none",
-              padding: "0.45rem 1rem",
-              borderRadius: "6px",
-              fontWeight: 700,
-              fontSize: "0.8rem",
-              cursor: emergencyHalt ? "not-allowed" : "pointer",
-              opacity: emergencyHalt ? 0.4 : 1,
-            }}
-          >
-            ▶ Dispatch Test Signal
-          </button>
-
-          <button
-            onClick={() => setIsPaused(!isPaused)}
-            style={{
-              background: "var(--panel)",
-              color: "var(--text)",
-              border: "1px solid var(--border)",
-              padding: "0.45rem 0.9rem",
-              borderRadius: "6px",
-              fontSize: "0.8rem",
-              cursor: "pointer",
-            }}
-          >
-            {isPaused ? "▶ Resume Stream" : "⏸ Pause Stream"}
-          </button>
-
-          <button
-            onClick={() => setEmergencyHalt(!emergencyHalt)}
-            style={{
-              background: emergencyHalt ? "var(--approved)" : "rgba(248, 113, 113, 0.15)",
-              color: emergencyHalt ? "#000" : "var(--halted)",
-              border: "1px solid rgba(248, 113, 113, 0.3)",
-              padding: "0.45rem 0.9rem",
-              borderRadius: "6px",
-              fontWeight: 700,
-              fontSize: "0.8rem",
-              cursor: "pointer",
-            }}
-          >
-            {emergencyHalt ? "✓ Reset Circuit Breaker" : "🛑 Emergency Halt"}
-          </button>
+        <div className="kpi-box">
+          <div className="kpi-label">SUPER-MAJORITY GATE</div>
+          <div className="kpi-val" style={{ color: "var(--amber)" }}>&ge; 92.0% THRESHOLD</div>
+        </div>
+        <div className="kpi-box">
+          <div className="kpi-label">PIPELINE THROUGHPUT</div>
+          <div className="kpi-val">{isHalted ? "0" : throughput.toLocaleString()} MSG/SEC</div>
+        </div>
+        <div className="kpi-box">
+          <div className="kpi-label">KERNEL MEAN LATENCY</div>
+          <div className="kpi-val">{isHalted ? "—" : `${(meanLatency / 1000).toFixed(2)} ms`}</div>
         </div>
       </section>
 
-      {/* Live Signal Banner */}
-      {activeSignal && (
-        <div style={{ background: "rgba(56, 189, 248, 0.12)", border: "1px solid #38bdf8", color: "#38bdf8", padding: "0.75rem 1.25rem", borderRadius: "8px", marginBottom: "1.5rem", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <span className="live-dot" style={{ background: "#38bdf8" }} />
-          <strong>{activeSignal}</strong>
+      {/* Main Terminal Split Grid */}
+      <div className="terminal-grid">
+        {/* LEFT PANE: 11-AGENT CONSENSUS MATRIX */}
+        <div className="terminal-pane">
+          <div className="pane-header">
+            <span className="pane-title">11-AGENT CONSENSUS MATRIX</span>
+            <span className="pane-subtitle">SUPER-MAJORITY: 11/11 BUY [CONFIRMED]</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>AGENT_ID</th>
+                  <th>ANALYTICAL_ROOM</th>
+                  <th>VOTE</th>
+                  <th className="align-right">SCORE</th>
+                  <th className="align-right">CONFIDENCE</th>
+                  <th className="align-right">LATENCY</th>
+                </tr>
+              </thead>
+              <tbody>
+                {AGENTS_LIST.map((a) => (
+                  <tr key={a.name}>
+                    <td style={{ fontWeight: 700, color: "#fff" }}>{a.name}</td>
+                    <td style={{ color: "var(--text-muted)" }}>{a.room}</td>
+                    <td>
+                      <span className={a.vote === "BUY" ? "tag-buy" : "tag-sell"}>{a.vote}</span>
+                    </td>
+                    <td className="align-right" style={{ fontWeight: 700 }}>
+                      {a.score.toFixed(1)}/10
+                    </td>
+                    <td className="align-right" style={{ color: "var(--green)" }}>
+                      {a.confidence.toFixed(1)}%
+                    </td>
+                    <td className="align-right" style={{ color: "var(--text-dim)" }}>
+                      {a.latencyMs} ms
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
 
-      {/* TAB 1: PIPELINE GRID */}
-      {activeTab === "pipeline" && (
-        <>
-          <section className="metric-strip">
-            <div className="metric-card">
-              <div className="metric-label">Pipeline State</div>
-              <div className="metric-val" style={{ color: emergencyHalt ? "var(--halted)" : "var(--approved)" }}>
-                {emergencyHalt ? "LOCKED" : "OPTIMAL"}
-              </div>
+        {/* RIGHT PANE: 5-STAGE PIPELINE & RISK CONTROLS */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {/* Sub-ms Execution Pipeline */}
+          <div className="terminal-pane">
+            <div className="pane-header">
+              <span className="pane-title">SUB-MS EXECUTION PIPELINE</span>
+              <span className="pane-subtitle">DETERMINISTIC STAGE PROFILING</span>
             </div>
-            <div className="metric-card">
-              <div className="metric-label">Consensus Gate</div>
-              <div className="metric-val" style={{ color: "var(--high)" }}>&ge; 92.0%</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">Max Risk Per Trade</div>
-              <div className="metric-val">{riskSlider.toFixed(1)}% Equity</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">Active Agents</div>
-              <div className="metric-val">11 / 11 Online</div>
-            </div>
-          </section>
-
-          <section className="grid-panel">
-            <div className="table-wrapper">
-              <table className="telemetry-grid">
+            <div style={{ overflowX: "auto" }}>
+              <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Execution Stage</th>
-                    <th style={{ textAlign: "right" }}>Latency (ms)</th>
-                    <th>Consensus</th>
-                    <th>State</th>
-                    <th style={{ textAlign: "right" }}>Updated</th>
+                    <th>STAGE</th>
+                    <th>SUBSYSTEM</th>
+                    <th className="align-right">LATENCY (&micro;s)</th>
+                    <th>CONSENSUS</th>
+                    <th className="align-right">STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr
-                      key={r.id}
-                      onClick={() => setSelectedStage(r.stage === selectedStage ? null : r.stage)}
-                      style={{ cursor: "pointer", background: selectedStage === r.stage ? "rgba(56, 189, 248, 0.08)" : undefined }}
-                    >
-                      <td className="stage-cell">
-                        <div>{r.stage}</div>
-                        <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "2px" }}>{r.description}</div>
+                  {stages.map((s) => (
+                    <tr key={s.name}>
+                      <td style={{ fontWeight: 700 }}>{s.name}</td>
+                      <td style={{ color: "var(--text-muted)" }}>{s.subsystem}</td>
+                      <td className="align-right" style={{ color: "var(--amber)", fontWeight: 700 }}>
+                        {isHalted ? "—" : s.latencyUs.toLocaleString()}
                       </td>
-                      <td className="numeric">{emergencyHalt ? "—" : r.latencyMs.toFixed(2)}</td>
-                      <td>
-                        <span className={`consensus-pill ${r.consensus >= 92 ? "consensus-high" : "consensus-mid"}`}>
-                          {emergencyHalt ? "0" : r.consensus}% agreement
+                      <td style={{ color: "var(--cyan)" }}>{s.consensusGate}</td>
+                      <td className="align-right">
+                        <span className={isHalted ? "tag-halt" : "tag-ok"}>
+                          {isHalted ? "HALTED" : "OK"}
                         </span>
-                      </td>
-                      <td>
-                        <span className={`state-pill ${emergencyHalt ? "state-halted" : "state-approved"}`}>
-                          {emergencyHalt ? "HALTED" : r.state}
-                        </span>
-                      </td>
-                      <td className="numeric time-cell">
-                        {new Date(r.updatedAt).toLocaleTimeString()}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </section>
-        </>
-      )}
-
-      {/* TAB 2: 11-AGENT VOTING ROOM */}
-      {activeTab === "agents" && (
-        <section className="grid-panel">
-          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: "1.1rem" }}>11-Agent Autonomous Swarm</h2>
-              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: "0.8rem" }}>
-                Real-time multi-model inference breakdown across Sentiment, Strategy, and Math rooms
-              </p>
-            </div>
-            <span className="consensus-pill consensus-high">Super-Majority: 11/11 BUY</span>
           </div>
-          <div className="table-wrapper">
-            <table className="telemetry-grid">
-              <thead>
-                <tr>
-                  <th>Agent Name</th>
-                  <th>Analytical Room</th>
-                  <th>Action</th>
-                  <th style={{ textAlign: "right" }}>Score (1–10)</th>
-                  <th style={{ textAlign: "right" }}>Confidence</th>
-                  <th style={{ textAlign: "right" }}>Latency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {AGENTS.map((a) => (
-                  <tr key={a.name}>
-                    <td style={{ fontWeight: 700, color: "#fff" }}>{a.name}</td>
-                    <td>
-                      <span style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "var(--border)", color: "var(--muted)" }}>
-                        {a.room}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="consensus-pill consensus-high">{a.action}</span>
-                    </td>
-                    <td className="numeric" style={{ fontWeight: 700 }}>{a.score}/10</td>
-                    <td className="numeric" style={{ color: "var(--approved)" }}>{a.confidence}%</td>
-                    <td className="numeric time-cell">{a.latencyMs} ms</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
 
-      {/* TAB 3: RISK GOVERNOR */}
-      {activeTab === "governor" && (
-        <section className="grid-panel" style={{ padding: "2rem" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.2rem" }}>Deterministic Risk Governor Parameters</h2>
-          <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "2rem" }}>
-            Hardware-level constraints executed prior to order dispatch. Zero override capability.
-          </p>
-
-          <div style={{ marginBottom: "2rem" }}>
+          {/* Hardware Risk Controls */}
+          <div className="terminal-pane" style={{ padding: "0.85rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Maximum Risk Per Trade</span>
-              <span style={{ color: "#38bdf8", fontWeight: 700 }}>{riskSlider.toFixed(1)}% of Capital</span>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--amber)" }}>
+                DETERMINISTIC RISK GOVERNOR [HARDWARE_FLOOR]
+              </span>
+              <span style={{ color: "#fff", fontWeight: 700 }}>{riskCap.toFixed(1)}% OF CAPITAL</span>
             </div>
             <input
               type="range"
               min="0.1"
               max="5.0"
               step="0.1"
-              value={riskSlider}
-              onChange={(e) => setRiskSlider(parseFloat(e.target.value))}
-              style={{ width: "100%", accentColor: "#38bdf8", cursor: "pointer" }}
+              value={riskCap}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setRiskCap(val);
+                addLog("RISK", `Risk allocation adjusted to ${val.toFixed(1)}% equity per execution.`, "alert");
+              }}
+              className="term-slider"
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.25rem" }}>
-              <span>0.1% (Ultra-Conservative)</span>
-              <span>2.5% (Institutional Standard)</span>
-              <span>5.0% (Hard Max Floor)</span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "0.5rem",
+                marginTop: "0.75rem",
+                fontSize: "11px",
+              }}
+            >
+              <div style={{ background: "#05080c", border: "1px solid var(--term-border)", padding: "0.5rem" }}>
+                <div style={{ color: "var(--text-muted)", fontSize: "10px" }}>DAILY DRAWDOWN CAP</div>
+                <div style={{ color: "var(--green)", fontWeight: 700, marginTop: "2px" }}>3.00% MAX</div>
+              </div>
+              <div style={{ background: "#05080c", border: "1px solid var(--term-border)", padding: "0.5rem" }}>
+                <div style={{ color: "var(--text-muted)", fontSize: "10px" }}>ORDER EXECUTION</div>
+                <div style={{ color: "var(--green)", fontWeight: 700, marginTop: "2px" }}>IOC / FOK DIRECT</div>
+              </div>
+              <div style={{ background: "#05080c", border: "1px solid var(--term-border)", padding: "0.5rem" }}>
+                <div style={{ color: "var(--text-muted)", fontSize: "10px" }}>SPREAD DEFENSE</div>
+                <div style={{ color: "var(--green)", fontWeight: 700, marginTop: "2px" }}>HALT &ge; 2.5 PIPS</div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-            <div style={{ background: "rgba(0,0,0,0.3)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>Drawdown Circuit Breaker</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem", color: "var(--approved)" }}>3.00% Daily Cap</div>
-            </div>
-            <div style={{ background: "rgba(0,0,0,0.3)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>Order Flow Protection</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem", color: "var(--approved)" }}>IOC / FOK Direct</div>
-            </div>
-            <div style={{ background: "rgba(0,0,0,0.3)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>Spread Spike Filter</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem", color: "var(--approved)" }}>Auto-Halt &ge; 2.5 pips</div>
-            </div>
+      {/* BOTTOM PANE: REAL-TIME AUDIT LOG */}
+      <div className="console-pane">
+        <div style={{ fontSize: "10px", color: "var(--amber)", marginBottom: "0.35rem", fontWeight: 700, letterSpacing: "0.06em" }}>
+          SYS_AUDIT_STREAM [REAL-TIME EXECUTION LOG]
+        </div>
+        {logs.map((l) => (
+          <div key={l.id} className="console-line">
+            <span className="console-time">[{l.timestamp}]</span>
+            <span className="console-source">[{l.source}]</span>
+            <span className={`console-msg ${l.type}`}>{l.message}</span>
           </div>
-        </section>
-      )}
-
-      {/* Footer */}
-      <footer className="cockpit-footer">
-        <span>Sovereign Execution Cockpit · Built with Next.js 14 & TypeScript Strict</span>
-        <span>Deterministic Architecture · Fail-Closed Invariants</span>
-      </footer>
-    </main>
+        ))}
+        <div ref={consoleEndRef} />
+      </div>
+    </div>
   );
 }
