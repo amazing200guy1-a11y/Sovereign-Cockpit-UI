@@ -1,6 +1,7 @@
 # Sovereign-Cockpit-UI: High-Performance Real-Time Telemetry & Execution Dashboard
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel_Online-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://sovereign-cockpit-ui.vercel.app)
+[![Live Backend API](https://img.shields.io/badge/Live_Backend_API-Synapse_Swagger_Docs-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://synapse-orchestrator.onrender.com/docs)
 ![Next.js](https://img.shields.io/badge/Next.js-14_App_Router-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -9,7 +10,8 @@
 **Institutional-grade real-time operator cockpit and execution telemetry workstation.**  
 Built for quantitative and AI systems engineers who require sub-millisecond visibility into multi-agent consensus matrices, hardware risk constraints, and high-frequency order flows without visual clutter.
 
-🔗 **Explore Live Workstation:** [https://sovereign-cockpit-ui.vercel.app](https://sovereign-cockpit-ui.vercel.app)
+🔗 **Explore Live Workstation:** [https://sovereign-cockpit-ui.vercel.app](https://sovereign-cockpit-ui.vercel.app)  
+⚡ **Interactive Backend API (`/docs`):** [https://synapse-orchestrator.onrender.com/docs](https://synapse-orchestrator.onrender.com/docs)
 
 ---
 
@@ -23,7 +25,7 @@ Built for quantitative and AI systems engineers who require sub-millisecond visi
 │   OPERATOR SIDEBAR    │                  TELEMETRY CANVAS                   │
 │                       ├─────────────────────────────────────────────────────┤
 │ • Usman Bamidele      │ 1. Hero KPI Matrix                                  │
-│   (ID: 942-001)       │    - 94.20% Consensus Super-Majority (Monospace)    │
+│   (AI & Backend Eng)  │    - 94.20% Consensus Super-Majority (Monospace)    │
 │ • Navigation Mesh:    │    - Kelly Criterion (0.145 + SVG Sparkline)        │
 │   - Dashboard         │    - 11/11 Active Agents Across 3 Analytical Rooms  │
 │   - Markets           │    - Dynamic Risk Parity Gauges                     │
