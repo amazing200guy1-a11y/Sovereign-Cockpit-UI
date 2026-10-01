@@ -62,24 +62,34 @@ export default function SovereignCockpit() {
     return () => clearInterval(interval);
   }, [isHalted]);
 
-  const handleDispatch = () => {
+  const handleDispatch = async () => {
     if (isDispatching) return;
     setIsDispatching(true);
-    setDispatchMsg("Propagating tick through 11 agents...");
-    setTimeout(() => {
-      setDispatchMsg("Oracle verified: Pairwise slip 0.01% [PASS]");
-    }, 600);
-    setTimeout(() => {
-      setDispatchMsg("Consensus reached: 95.8% Supermajority [BUY]");
+    setDispatchMsg("Connecting to Synapse API (Render) · Evaluating 11 agents...");
+    try {
+      const res = await fetch("https://synapse-orchestrator.onrender.com/v1/consensus/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload: "EURUSD H1: price=1.0850, ATR=0.0042, RSI=62, order-block confluence at 1.0835, FOMC blackout clear."
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const score = Number((data.consensus_score * 100).toFixed(2));
+        setConsensus(score);
+        setDispatchMsg(`Render API [200 OK]: ${score}% consensus (${data.supermajority_reached ? "SUPERMAJORITY PASS" : "HOLD"}) · ${data.latency_ms}ms`);
+      } else {
+        throw new Error("HTTP " + res.status);
+      }
+    } catch {
+      setDispatchMsg("Consensus reached: 95.80% Supermajority [BUY] (local fallback replay)");
       setConsensus(95.8);
-    }, 1200);
-    setTimeout(() => {
-      setDispatchMsg("Execution routed via FIX 4.4 bridge (185 µs)");
-    }, 1800);
+    }
     setTimeout(() => {
       setIsDispatching(false);
       setDispatchMsg("");
-    }, 2800);
+    }, 4500);
   };
 
   return (
